@@ -45,3 +45,58 @@
 .monaco-editor .margin {
   background-color: #0d1117 !important;
 }
+
+/* ─── Highlight.js — Codara Dark Theme ────────────────────────────────────── */
+/* Inspirado en GitHub Dark, ajustado a la paleta de Codara                   */
+
+.hljs { color: #c9d1d9; }                         /* texto base */
+
+/* Comentarios */
+.hljs-comment,
+.hljs-quote      { color: #8b949e; font-style: italic; }
+
+/* Palabras clave: if, for, return, int, void, ... */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link       { color: #ff7b72; }
+
+/* Tipos: int, float, char, bool, void */
+.hljs-type,
+.hljs-built_in   { color: #ffa657; }
+
+/* Strings: "texto", 'c' */
+.hljs-string,
+.hljs-title.class_,
+.hljs-attr       { color: #a5d6ff; }
+
+/* Números: 42, 3.14, 0xFF */
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet     { color: #79c0ff; }
+
+/* Nombres de funciones y macros */
+.hljs-title,
+.hljs-title.function_  { color: #d2a8ff; }
+
+/* Directivas del preprocesador: #include, #define */
+.hljs-meta,
+.hljs-meta .hljs-keyword { color: #f0c060; }
+
+/* Variables / identificadores especiales */
+.hljs-variable,
+.hljs-template-variable { color: #c9d1d9; }
+
+/* Operadores */
+.hljs-operator   { color: #79c0ff; }
+
+/* Eliminado / negado */
+.hljs-deletion   { color: #ff7b72; }
+
+/* Agregado */
+.hljs-addition   { color: #3fb950; }
+
+/* Énfasis */
+.hljs-emphasis   { font-style: italic; }
+.hljs-strong     { font-weight: bold; }

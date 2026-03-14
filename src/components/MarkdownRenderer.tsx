@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import InteractiveCode from './InteractiveCode'
+import { highlightCode } from '../utils/highlight'
 import type { Segment } from '../types'
 import { segmentMarkdown } from '../utils/courseLoader'
 
@@ -102,9 +103,14 @@ const mdComponents = {
         </code>
       )
     }
-    // Block code inside prose (not segmented) - shouldn't reach here often
+    // Block code inside prose (not segmented)
     const lang = (className ?? '').replace('language-', '')
-    return <InteractiveCode lang={lang} code={String(children).trimEnd()} />
+    const raw = String(children).trimEnd()
+    return (
+      <pre className="hljs my-4 overflow-x-auto rounded-xl border border-border p-4 text-sm font-mono leading-relaxed bg-base">
+        <code dangerouslySetInnerHTML={{ __html: highlightCode(raw, lang) }} />
+      </pre>
+    )
   },
   pre: ({ children }: React.PropsWithChildren) => <>{children}</>,
   hr: () => <hr className="my-6 border-border" />,

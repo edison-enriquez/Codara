@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Play, RotateCcw, Copy, Check, Terminal } from 'lucide-react'
 import { useCodeRunner } from '../hooks/useCodeRunner'
+import { highlightCode } from '../utils/highlight'
 
 const LANG_RUNNABLE = new Set(['javascript', 'js', 'typescript', 'ts', 'python', 'py', 'c'])
 const LANG_LABEL: Record<string, string> = {
@@ -87,12 +88,15 @@ export default function InteractiveCode({ lang, code, executable = false }: Prop
         </div>
       </div>
 
-      {/* Code */}
+      {/* Code — syntax highlighted */}
       <pre
         ref={codeRef}
-        className="overflow-x-auto p-4 text-sm font-mono text-text leading-relaxed bg-base"
+        className="hljs overflow-x-auto p-4 text-sm font-mono leading-relaxed bg-base"
       >
-        <code>{code}</code>
+        <code
+          // highlight.js escapa el HTML internamente — seguro para contenido del repo
+          dangerouslySetInnerHTML={{ __html: highlightCode(code, normalizedLang) }}
+        />
       </pre>
 
       {/* Output */}

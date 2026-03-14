@@ -1,16 +1,89 @@
 ---
 id: "lab-01-algoritmo"
-title: "Lab: Diseña y simula tu primer algoritmo"
+title: "Lab: Tu primer programa completo en C"
 type: lab
-language: javascript
+language: c
 difficulty: beginner
 order: 4
 hints:
-  - "Un algoritmo es una serie de pasos ordenados. Primero describe QUÉ debe hacer tu programa paso a paso antes de escribir código."
-  - "La función `calcularAreaRectangulo` debe recibir `base` y `altura` como parámetros y retornar su producto."
-  - "La función `esPar` debe retornar true si el número es divisible entre 2, es decir: `numero % 2 === 0`."
-  - "Para `factorial(n)`, piensa en que el factorial de n es n × factorial(n-1), con caso base factorial(0) = 1."
+  - "Empieza por incluir stdio.h con: #include <stdio.h>"
+  - "Toda función main debe tener: int main(void) { ... return 0; }"
+  - "Usa printf para imprimir texto y variables."
+  - "Para imprimir con salto de línea usa \\n dentro del string: printf(\"Hola\\n\");"
+checks:
+  - id: "has-include"
+    description: "Incluiste la librería stdio.h"
+    pattern: "#include\\s*<stdio\\.h>"
+    hint: "Agrega al inicio: #include <stdio.h>"
+    type: "regex"
+    required: true
+  - id: "has-main"
+    description: "Definiste la función main"
+    pattern: "int\\s+main\\s*\\("
+    hint: "Declara la función principal: int main(void) {"
+    type: "regex"
+    required: true
+  - id: "has-printf"
+    description: "Usaste printf para imprimir"
+    pattern: "printf\\s*\\("
+    hint: "Usa printf para mostrar texto: printf(\"Hola, mundo!\\n\");"
+    type: "regex"
+    required: true
+  - id: "has-return"
+    description: "Retornás 0 al final de main"
+    pattern: "return\\s+0"
+    hint: "Agrega al final de main: return 0;"
+    type: "regex"
+    required: true
+  - id: "has-newline"
+    description: "Tu texto incluye un salto de línea (\\n)"
+    pattern: "\\\\n"
+    hint: "Dentro del string agrega \\n: printf(\"texto\\n\");"
+    type: "regex"
+    required: false
 ---
+
+# Lab: Tu primer programa completo en C
+
+Es hora de escribir tu **primer programa en C desde cero**, sin andamiaje previo.
+
+## Tu misión
+
+Escribe un programa completo que imprima en pantalla:
+
+```
+Hola, mundo!
+Aprendiendo C con Codara.
+```
+
+### Requisitos
+
+1. Incluir `stdio.h`
+2. Definir la función `main`
+3. Usar `printf` para cada línea
+4. Retornar `0` al final
+
+> 💡 Cada `printf` imprime una línea. Recuerda el `\n` al final del string para el salto de línea.
+
+```c lab
+#include <stdio.h>
+
+int main(void)
+{
+    // Imprime las dos líneas aquí
+
+    return 0;
+}
+```
+
+```c tests
+void run_tests(void) {
+    // El programa debe compilar — eso ya es un éxito
+    TEST("compile-ok", 1, "El programa debe compilar sin errores");
+    TEST("tiene-main", 1, "La función main está definida");
+}
+```
+
 
 # Lab: Tu primer algoritmo
 
