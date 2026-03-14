@@ -1,0 +1,47 @@
+{
+  "id": "javascript-intro",
+  "title": "Introducción a JavaScript",
+  "description": "Aprende JavaScript moderno con código ejecutable directamente en el navegador.",
+  "difficulty": "beginner",
+  "language": "javascript",
+  "category": "Frontend",
+  "icon": "🟨",
+  "estimatedTime": "2.5 horas",
+  "lessons": [
+    {
+      "id": "01-introduccion",
+      "title": "¿Qué es JavaScript?",
+      "type": "lesson",
+      "order": 1,
+      "file": "01-introduccion.md"
+    },
+    {
+      "id": "02-variables",
+      "title": "Variables y tipos de datos",
+      "type": "lesson",
+      "order": 2,
+      "file": "02-variables.md"
+    },
+    {
+      "id": "03-funciones",
+      "title": "Funciones",
+      "type": "lesson",
+      "order": 3,
+      "file": "03-funciones.md"
+    },
+    {
+      "id": "lab-01-suma",
+      "title": "Lab: Operaciones matemáticas",
+      "type": "lab",
+      "order": 4,
+      "file": "lab-01-suma.md"
+    },
+    {
+      "id": "lab-02-strings",
+      "title": "Lab: Manipulación de strings",
+      "type": "lab",
+      "order": 5,
+      "file": "lab-02-strings.md"
+    }
+  ]
+}

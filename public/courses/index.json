@@ -1,0 +1,41 @@
+[
+  {
+    "id": "c-fundamentos",
+    "title": "Fundamentos de Programación en C",
+    "description": "Aprende los conceptos esenciales de la programación desde cero usando el lenguaje C: desde qué es un programa hasta tipos de datos y control de flujo.",
+    "difficulty": "beginner",
+    "language": "c",
+    "category": "Programación",
+    "icon": "⚙️",
+    "lessonsCount": 3,
+    "labsCount": 1,
+    "estimatedTime": "3 horas",
+    "tags": ["C", "algoritmos", "compilación", "variables"]
+  },
+  {
+    "id": "javascript-intro",
+    "title": "Introducción a JavaScript",
+    "description": "Aprende JavaScript moderno con código ejecutable directamente en el navegador. Variables, funciones, arrays y más — con desafíos interactivos.",
+    "difficulty": "beginner",
+    "language": "javascript",
+    "category": "Frontend",
+    "icon": "🟨",
+    "lessonsCount": 3,
+    "labsCount": 2,
+    "estimatedTime": "2.5 horas",
+    "tags": ["JavaScript", "funciones", "arrays", "ES6"]
+  },
+  {
+    "id": "python-intro",
+    "title": "Python desde Cero",
+    "description": "Primeros pasos en Python: sintaxis, variables, funciones y estructuras de datos. Ejecuta código Python en el navegador gracias a Pyodide.",
+    "difficulty": "beginner",
+    "language": "python",
+    "category": "Data & Scripts",
+    "icon": "🐍",
+    "lessonsCount": 2,
+    "labsCount": 2,
+    "estimatedTime": "2 horas",
+    "tags": ["Python", "funciones", "listas", "Pyodide"]
+  }
+]

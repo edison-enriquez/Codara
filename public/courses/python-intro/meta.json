@@ -1,0 +1,40 @@
+{
+  "id": "python-intro",
+  "title": "Python desde Cero",
+  "description": "Primeros pasos en Python: sintaxis, variables, funciones y estructuras de datos. Corre Python en el navegador con Pyodide.",
+  "difficulty": "beginner",
+  "language": "python",
+  "category": "Data & Scripts",
+  "icon": "🐍",
+  "estimatedTime": "2 horas",
+  "lessons": [
+    {
+      "id": "01-introduccion",
+      "title": "Introducción a Python",
+      "type": "lesson",
+      "order": 1,
+      "file": "01-introduccion.md"
+    },
+    {
+      "id": "02-funciones",
+      "title": "Funciones y estructuras de datos",
+      "type": "lesson",
+      "order": 2,
+      "file": "02-funciones.md"
+    },
+    {
+      "id": "lab-01-matematicas",
+      "title": "Lab: Funciones matemáticas",
+      "type": "lab",
+      "order": 3,
+      "file": "lab-01-matematicas.md"
+    },
+    {
+      "id": "lab-02-listas",
+      "title": "Lab: Manipulación de listas",
+      "type": "lab",
+      "order": 4,
+      "file": "lab-02-listas.md"
+    }
+  ]
+}

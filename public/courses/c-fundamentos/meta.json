@@ -1,0 +1,61 @@
+{
+  "id": "c-fundamentos",
+  "title": "Fundamentos de Programación en C",
+  "description": "Aprende los conceptos esenciales de la programación desde cero usando el lenguaje C.",
+  "difficulty": "beginner",
+  "language": "c",
+  "category": "Programación",
+  "icon": "⚙️",
+  "estimatedTime": "5 horas",
+  "lessons": [
+    {
+      "id": "1.0-lenguaje-natural",
+      "title": "Lenguaje natural vs lenguaje de programación",
+      "type": "lesson",
+      "order": 1,
+      "file": "1.0-lenguaje-natural.md"
+    },
+    {
+      "id": "1.1-primer-programa",
+      "title": "Tu primer programa en C",
+      "type": "lesson",
+      "order": 2,
+      "file": "1.1-primer-programa.md"
+    },
+    {
+      "id": "1.2-numeros",
+      "title": "Los números y la computadora",
+      "type": "lesson",
+      "order": 3,
+      "file": "1.2-numeros.md"
+    },
+    {
+      "id": "lab-01-algoritmo",
+      "title": "Lab: Escribe tu primer algoritmo",
+      "type": "lab",
+      "order": 4,
+      "file": "lab-01-algoritmo.md"
+    },
+    {
+      "id": "lab-02-variables-c",
+      "title": "Lab: Variables y Tipos en C",
+      "type": "lab",
+      "order": 5,
+      "file": "lab-02-variables-c.md"
+    },
+    {
+      "id": "lab-03-suma-c",
+      "title": "Lab: Función suma en C",
+      "type": "lab",
+      "order": 6,
+      "file": "lab-03-suma-c.md"
+    },
+    {
+      "id": "lab-04-loops-c",
+      "title": "Lab: Bucles y Contadores en C",
+      "type": "lab",
+      "order": 7,
+      "file": "lab-04-loops-c.md"
+    }
+  ]
+}

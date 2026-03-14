@@ -1,0 +1,10 @@
+{
+  "name": "codara-server",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env.server sandbox.mjs 2>/dev/null || node sandbox.mjs",
+    "dev": "node --watch sandbox.mjs"
+  },
+  "dependencies": {}
+}
