@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file=.env.server sandbox.mjs 2>/dev/null || node sandbox.mjs",
-    "dev": "node --watch sandbox.mjs"
+    "dev": "node --env-file=.env.server --watch sandbox.mjs"
   },
   "dependencies": {}
 }

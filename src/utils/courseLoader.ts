@@ -4,6 +4,7 @@ import type {
   LessonFrontmatter,
   ParsedLesson,
   Segment,
+  Chapter,
 } from '../types'
 
 // ─── Frontmatter parser (subset YAML con soporte de objetos anidados) ────────
@@ -230,7 +231,14 @@ export async function loadCourseIndex(): Promise<CourseSummary[]> {
 export async function loadCourseData(courseId: string): Promise<CourseData> {
   const res = await fetch(`/courses/${courseId}/meta.json`)
   if (!res.ok) throw new Error(`No se pudo cargar el curso "${courseId}"`)
-  return res.json()
+  const data = await res.json()
+
+  // If the course uses chapters, build the flat lessons array automatically
+  if (data.chapters && !data.lessons) {
+    data.lessons = (data.chapters as Chapter[]).flatMap((ch) => ch.lessons)
+  }
+
+  return data
 }
 
 export async function loadLessonFile(courseId: string, fileName: string): Promise<ParsedLesson> {

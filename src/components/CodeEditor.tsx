@@ -1,4 +1,5 @@
 import Editor from '@monaco-editor/react'
+import { useCurrentTheme } from '../hooks/useTheme'
 
 interface Props {
   value: string
@@ -13,14 +14,16 @@ const LANG_MAP: Record<string, string> = {
 }
 
 export default function CodeEditor({ value, onChange, language = 'javascript', height = '340px', readOnly = false }: Props) {
+  const theme = useCurrentTheme()
   const monacoLang = LANG_MAP[language] ?? language
+  const monacoTheme = theme === 'light' ? 'vs-light' : 'vs-dark'
 
   return (
     <Editor
       height={height}
       language={monacoLang}
       value={value}
-      theme="vs-dark"
+      theme={monacoTheme}
       onChange={(v) => onChange(v ?? '')}
       options={{
         fontSize: 14,
@@ -41,7 +44,7 @@ export default function CodeEditor({ value, onChange, language = 'javascript', h
         hideCursorInOverviewRuler: true,
       }}
       loading={
-        <div className="flex h-full items-center justify-center bg-[#1e1e1e] text-sm text-muted">
+        <div className="flex h-full items-center justify-center bg-surface text-sm text-muted">
           Cargando editor…
         </div>
       }

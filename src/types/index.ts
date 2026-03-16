@@ -24,6 +24,12 @@ export interface LessonMeta {
   file: string
 }
 
+export interface Chapter {
+  id: string
+  title: string
+  lessons: LessonMeta[]
+}
+
 export interface CourseData {
   id: string
   title: string
@@ -33,7 +39,8 @@ export interface CourseData {
   category: string
   icon: string
   estimatedTime: string
-  lessons: LessonMeta[]
+  lessons: LessonMeta[]   // flat list (built from chapters by courseLoader)
+  chapters?: Chapter[]    // optional grouped structure for menu
 }
 
 export interface CodeCheck {

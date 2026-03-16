@@ -91,7 +91,7 @@ export default function LabView({ lesson, courseId }: Props) {
             <button
               onClick={handleRun}
               disabled={state === 'running' || !testCode}
-              className="flex items-center gap-2 rounded bg-blue px-4 py-1.5 text-xs font-medium text-white hover:bg-blue/80 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 rounded bg-blue px-4 py-1.5 text-xs font-medium text-base hover:bg-blue/80 disabled:opacity-50 transition-colors"
             >
               {state === 'running' ? (
                 <>

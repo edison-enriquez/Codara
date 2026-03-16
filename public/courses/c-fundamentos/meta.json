@@ -6,63 +6,59 @@
   "language": "c",
   "category": "Programación",
   "icon": "⚙️",
-  "estimatedTime": "6 horas",
-  "lessons": [
+  "estimatedTime": "8 horas",
+  "chapters": [
     {
-      "id": "1.0-lenguaje-natural",
-      "title": "Lenguaje natural vs lenguaje de programación",
-      "type": "lesson",
-      "order": 1,
-      "file": "1.0-lenguaje-natural.md"
+      "id": "capitulo-1",
+      "title": "Capítulo 1 — Primeros pasos",
+      "lessons": [
+        { "id": "1.0-lenguaje-natural", "title": "1.0 — Lenguaje natural vs lenguaje de programación", "type": "lesson", "order": 1,  "file": "capitulo-1/1.0-lenguaje-natural.md" },
+        { "id": "1.1-primer-programa",  "title": "1.1 — El viaje comienza: Tu primer programa",       "type": "lesson", "order": 2,  "file": "capitulo-1/1.1-primer-programa.md" },
+        { "id": "lab-01-nombre",        "title": "Lab 1.1.2 — ¿Cuál es tu nombre?",                    "type": "lab",    "order": 3,  "file": "capitulo-1/lab-01-nombre.md" },
+        { "id": "lab-02-numeros-1",     "title": "Lab 1.1.3 — Solo números: Parte 1",                  "type": "lab",    "order": 4,  "file": "capitulo-1/lab-02-numeros-1.md" },
+        { "id": "1.2-numeros",          "title": "1.2 — Los números, variables y comentarios en C",     "type": "lesson", "order": 5,  "file": "capitulo-1/1.2-numeros.md" },
+        { "id": "lab-03-numeros-2",     "title": "Lab 1.2.9 — Solo números: Parte 2",                  "type": "lab",    "order": 6,  "file": "capitulo-1/lab-03-numeros-2.md" },
+        { "id": "lab-04-numeros-3",     "title": "Lab 1.2.10 — Solo números: Parte 3",                 "type": "lab",    "order": 7,  "file": "capitulo-1/lab-04-numeros-3.md" },
+        { "id": "lab-05-numeros-4",     "title": "Lab 1.2.11 — Solo números: Parte 4 (Octal)",         "type": "lab",    "order": 8,  "file": "capitulo-1/lab-05-numeros-4.md" },
+        { "id": "lab-06-numeros-5",     "title": "Lab 1.2.12 — Solo números: Parte 5 (Hexadecimal)",   "type": "lab",    "order": 9,  "file": "capitulo-1/lab-06-numeros-5.md" },
+        { "id": "lab-07-variables-1",   "title": "Lab 1.2.13 — Variables: Parte 1",                    "type": "lab",    "order": 10, "file": "capitulo-1/lab-07-variables-1.md" },
+        { "id": "lab-08-variables-2",   "title": "Lab 1.2.14 — Variables: Parte 2",                    "type": "lab",    "order": 11, "file": "capitulo-1/lab-08-variables-2.md" },
+        { "id": "lab-09-variables-3",   "title": "Lab 1.2.15 — Variables: Parte 3 (IP)",               "type": "lab",    "order": 12, "file": "capitulo-1/lab-09-variables-3.md" },
+        { "id": "lab-10-variables-4",   "title": "Lab 1.2.16 — Variables: Parte 4 (Días del año)",     "type": "lab",    "order": 13, "file": "capitulo-1/lab-10-variables-4.md" },
+        { "id": "lab-11-variables-5",   "title": "Lab 1.2.17 — Variables: Parte 5 (Trimestres)",       "type": "lab",    "order": 14, "file": "capitulo-1/lab-11-variables-5.md" },
+        { "id": "lab-12-comentarios",   "title": "Lab 1.2.18 — Comentarios: ¿son siempre útiles?",     "type": "lab",    "order": 15, "file": "capitulo-1/lab-12-comentarios.md" }
+      ]
     },
     {
-      "id": "1.1-primer-programa",
-      "title": "Tu primer programa en C",
-      "type": "lesson",
-      "order": 2,
-      "file": "1.1-primer-programa.md"
+      "id": "capitulo-2",
+      "title": "Capítulo 2 — Tipos, operadores y control",
+      "lessons": [
+        { "id": "2.0-flotantes",        "title": "2.0 — Números de punto flotante",           "type": "lesson", "order": 16, "file": "capitulo-2/2.0-flotantes.md" },
+        { "id": "lab-13-flotantes",     "title": "Lab 2.0 — Números de punto flotante",       "type": "lab",    "order": 17, "file": "capitulo-2/lab-13-flotantes.md" },
+        { "id": "2.1-operadores",       "title": "2.1 — Operadores aritméticos",              "type": "lesson", "order": 18, "file": "capitulo-2/2.1-operadores.md" },
+        { "id": "lab-14-operadores",    "title": "Lab 2.1 — Operadores aritméticos",          "type": "lab",    "order": 19, "file": "capitulo-2/lab-14-operadores.md" },
+        { "id": "2.2-caracteres",       "title": "2.2 — Caracteres: el tipo char",            "type": "lesson", "order": 20, "file": "capitulo-2/2.2-caracteres.md" },
+        { "id": "lab-15-caracteres",    "title": "Lab 2.2 — El tipo char y ASCII",            "type": "lab",    "order": 21, "file": "capitulo-2/lab-15-caracteres.md" },
+        { "id": "2.3-control-flujo",    "title": "2.3 — Control de flujo: la sentencia if",  "type": "lesson", "order": 22, "file": "capitulo-2/2.3-control-flujo.md" },
+        { "id": "lab-16-condicionales", "title": "Lab 2.3 — Condicionales con if",            "type": "lab",    "order": 23, "file": "capitulo-2/lab-16-condicionales.md" },
+        { "id": "2.4-entrada-salida",   "title": "2.4 — Entrada y salida formateada",         "type": "lesson", "order": 24, "file": "capitulo-2/2.4-entrada-salida.md" },
+        { "id": "lab-17-printf-formato","title": "Lab 2.4 — Formatear salida con printf",     "type": "lab",    "order": 25, "file": "capitulo-2/lab-17-printf-formato.md" }
+      ]
     },
     {
-      "id": "1.2-numeros",
-      "title": "Los números y la computadora",
-      "type": "lesson",
-      "order": 3,
-      "file": "1.2-numeros.md"
-    },
-    {
-      "id": "1.3-condicionales",
-      "title": "Condicionales: if, else y switch",
-      "type": "lesson",
-      "order": 4,
-      "file": "1.3-condicionales.md"
-    },
-    {
-      "id": "lab-01-algoritmo",
-      "title": "Lab: Tu primer programa completo en C",
-      "type": "lab",
-      "order": 5,
-      "file": "lab-01-algoritmo.md"
-    },
-    {
-      "id": "lab-02-variables-c",
-      "title": "Lab: Variables y Tipos en C",
-      "type": "lab",
-      "order": 6,
-      "file": "lab-02-variables-c.md"
-    },
-    {
-      "id": "lab-03-suma-c",
-      "title": "Lab: Función suma en C",
-      "type": "lab",
-      "order": 7,
-      "file": "lab-03-suma-c.md"
-    },
-    {
-      "id": "lab-04-loops-c",
-      "title": "Lab: Bucles y Contadores en C",
-      "type": "lab",
-      "order": 8,
-      "file": "lab-04-loops-c.md"
+      "id": "capitulo-3",
+      "title": "Capítulo 3 — Estructuras de control y lógica",
+      "lessons": [
+        { "id": "3.0-if-else",          "title": "3.0 — La sentencia if-else",                "type": "lesson", "order": 26, "file": "capitulo-3/3.0-if-else.md" },
+        { "id": "lab-18-if-else",       "title": "Lab 3.0 — Sentencia if-else",               "type": "lab",    "order": 27, "file": "capitulo-3/lab-18-if-else.md" },
+        { "id": "3.1-tipos-avanzados",  "title": "3.1 — Tipos de datos adicionales",          "type": "lesson", "order": 28, "file": "capitulo-3/3.1-tipos-avanzados.md" },
+        { "id": "3.2-conversiones",     "title": "3.2 — Conversiones de tipo",                "type": "lesson", "order": 29, "file": "capitulo-3/3.2-conversiones.md" },
+        { "id": "3.3-bucles",           "title": "3.3 — Bucles: while, do-while y for",       "type": "lesson", "order": 30, "file": "capitulo-3/3.3-bucles.md" },
+        { "id": "lab-19-bucle-while",   "title": "Lab 3.3 — Bucle while",                    "type": "lab",    "order": 31, "file": "capitulo-3/lab-19-bucle-while.md" },
+        { "id": "lab-20-bucle-for",     "title": "Lab 3.3 — Bucle for y tabla de multiplicar","type": "lab",   "order": 32, "file": "capitulo-3/lab-20-bucle-for.md" },
+        { "id": "3.4-logica",           "title": "3.4 — Lógica computacional",                "type": "lesson", "order": 33, "file": "capitulo-3/3.4-logica.md" },
+        { "id": "lab-21-logica",        "title": "Lab 3.4 — Operadores lógicos",              "type": "lab",    "order": 34, "file": "capitulo-3/lab-21-logica.md" }
+      ]
     }
   ]
 }

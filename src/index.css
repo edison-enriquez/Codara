@@ -1,6 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Design tokens: DARK (default) ──────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+
+  --c-base:     0   0   0;
+  --c-surface:  15  15  15;
+  --c-elevated: 23  23  23;
+  --c-border:   31  31  31;
+  --c-muted:    85  85  85;
+  --c-text:     255 255 255;
+  --c-blue:     77  158 255;
+  --c-green:    125 247 186;
+  --c-red:      255 92  92;
+  --c-yellow:   255 224 102;
+  --c-purple:   204 153 255;
+  --c-orange:   255 170 77;
+  --c-cyan:     0   229 229;
+  --c-pink:     255 110 180;
+
+  --scrollbar-track: #000;
+  --scrollbar-thumb: #333;
+  --scrollbar-hover: #555;
+  --hljs-bg:     #0f0f0f;
+  --hljs-text:   #e0e0e0;
+  --hljs-kw:     255 92  92;   /* keywords = red dark */
+  --hljs-str:    125 247 186;  /* strings  = green dark */
+  --hljs-num:    255 224 102;  /* numbers  = yellow dark */
+}
+
+/* ─── Design tokens: LIGHT — RemoteOK palette ────────────────────────────── */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Estructura */
+  --c-base:     235 235 235;   /* #ebebeb — fondo principal RemoteOK */
+  --c-surface:  255 255 255;   /* #ffffff — tarjetas / paneles */
+  --c-elevated: 245 245 245;   /* #f5f5f5 — elementos elevados */
+  --c-border:   210 210 210;   /* #d2d2d2 — separadores */
+  --c-muted:    130 130 130;   /* texto secundario */
+  --c-text:     17  17  17;    /* #111111 — texto principal */
+
+  /* Acento principal: rojo/rosa RemoteOK #ff4742 */
+  --c-green:    255 71  66;    /* ← acento primario → rojo RemoteOK */
+  --c-blue:     255 71  66;    /* botones de acción también rojo */
+  --c-cyan:     255 71  66;    /* tags activos */
+
+  /* Acento secundario: naranja cálido */
+  --c-orange:   255 120 50;
+  --c-yellow:   180 120 0;
+
+  /* Semánticos */
+  --c-red:      220 38  38;    /* errores reales — rojo más oscuro */
+  --c-purple:   124 58  237;
+  --c-pink:     219 39  119;
+
+  --scrollbar-track: #d8d8d8;
+  --scrollbar-thumb: #b0b0b0;
+  --scrollbar-hover: #888888;
+  --hljs-bg:    #f5f5f5;
+  --hljs-text:  #1a1a1a;
+  --hljs-kw:    255 71  66;    /* keywords = rojo RemoteOK */
+  --hljs-str:   0   130 80;    /* strings  = verde oscuro legible */
+  --hljs-num:   180 90  0;     /* numbers  = ocre oscuro */
+}
 
 @layer base {
   *, *::before, *::after {
@@ -8,8 +75,8 @@
   }
 
   html {
-    font-family: 'Inter', system-ui, sans-serif;
-    color-scheme: dark;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    letter-spacing: -0.01em;
   }
 
   body {
@@ -17,20 +84,34 @@
     margin: 0;
     padding: 0;
     min-height: 100vh;
+    font-size: 14px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Smooth theme transition for all common UI elements */
+  *, *::before, *::after {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--scrollbar-track);
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-border;
+    background: var(--scrollbar-thumb);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #484f58;
+    background: var(--scrollbar-hover);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }
 
@@ -39,64 +120,47 @@
   /* managed by each element's mb-* */
 }
 
-/* Monaco editor host background */
-.monaco-editor,
-.monaco-editor-background,
-.monaco-editor .margin {
-  background-color: #0d1117 !important;
-}
+/* Monaco background — driven entirely by the 'theme' prop (vs-dark / vs-light) */
 
-/* ─── Highlight.js — Codara Dark Theme ────────────────────────────────────── */
-/* Inspirado en GitHub Dark, ajustado a la paleta de Codara                   */
+/* ─── Highlight.js theme (responds to data-theme) ────────────────────────── */
 
-.hljs { color: #c9d1d9; }                         /* texto base */
+.hljs { color: var(--hljs-text); background: var(--hljs-bg); }
 
-/* Comentarios */
 .hljs-comment,
-.hljs-quote      { color: #8b949e; font-style: italic; }
+.hljs-quote      { color: rgb(var(--c-muted)); font-style: italic; }
 
-/* Palabras clave: if, for, return, int, void, ... */
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-literal,
 .hljs-section,
-.hljs-link       { color: #ff7b72; }
+.hljs-link       { color: rgb(var(--hljs-kw)); }
 
-/* Tipos: int, float, char, bool, void */
 .hljs-type,
-.hljs-built_in   { color: #ffa657; }
+.hljs-built_in   { color: rgb(var(--c-orange)); }
 
-/* Strings: "texto", 'c' */
 .hljs-string,
 .hljs-title.class_,
-.hljs-attr       { color: #a5d6ff; }
+.hljs-attr       { color: rgb(var(--hljs-str)); }
 
-/* Números: 42, 3.14, 0xFF */
 .hljs-number,
 .hljs-symbol,
-.hljs-bullet     { color: #79c0ff; }
+.hljs-bullet     { color: rgb(var(--hljs-num)); }
 
-/* Nombres de funciones y macros */
 .hljs-title,
-.hljs-title.function_  { color: #d2a8ff; }
+.hljs-title.function_  { color: rgb(var(--c-purple)); }
 
-/* Directivas del preprocesador: #include, #define */
 .hljs-meta,
-.hljs-meta .hljs-keyword { color: #f0c060; }
+.hljs-meta .hljs-keyword { color: rgb(var(--c-cyan)); }
 
-/* Variables / identificadores especiales */
 .hljs-variable,
-.hljs-template-variable { color: #c9d1d9; }
+.hljs-template-variable { color: var(--hljs-text); }
 
-/* Operadores */
-.hljs-operator   { color: #79c0ff; }
+.hljs-operator   { color: rgb(var(--c-blue)); }
 
-/* Eliminado / negado */
-.hljs-deletion   { color: #ff7b72; }
+.hljs-deletion   { color: rgb(var(--hljs-kw)); }
 
-/* Agregado */
-.hljs-addition   { color: #3fb950; }
+.hljs-addition   { color: rgb(var(--hljs-str)); }
 
-/* Énfasis */
 .hljs-emphasis   { font-style: italic; }
 .hljs-strong     { font-weight: bold; }
+
