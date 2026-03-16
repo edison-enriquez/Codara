@@ -12,7 +12,7 @@ export default function App() {
   return (
     <ThemeContext.Provider value={theme}>
       <AuthProvider>
-        <BrowserRouter>
+        <BrowserRouter basename="/Codara">
           <div className="flex min-h-screen flex-col bg-base">
             <Header theme={theme} onToggleTheme={toggle} />
             <main className="flex flex-1 flex-col">
