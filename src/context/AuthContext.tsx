@@ -82,7 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   function login() {
-    const serverUrl = import.meta.env.VITE_SERVER_URL ?? ''
+    const serverUrl = import.meta.env.VITE_SERVER_URL
+    if (!serverUrl) {
+      alert('El login con GitHub requiere un servidor backend.\nConfigura el secret SERVER_URL en GitHub Actions apuntando a tu servidor desplegado.')
+      return
+    }
     window.location.href = `${serverUrl}/auth/github`
   }
 
