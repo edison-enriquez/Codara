@@ -5,7 +5,9 @@ import HintPanel from './HintPanel'
 import TestPanel from './TestPanel'
 import MarkdownRenderer from './MarkdownRenderer'
 import LiveAnalysis from './LiveAnalysis'
+import AgentPanel from './AgentPanel'
 import { useCodeRunner } from '../hooks/useCodeRunner'
+import { useAgent } from '../context/AgentContext'
 import { markComplete } from '../utils/courseLoader'
 import type { ParsedLesson } from '../types'
 
@@ -34,6 +36,7 @@ export default function LabView({ lesson, courseId }: Props) {
 
   const checks = meta.checks ?? []
   const isCLang = lang === 'c'
+  const { isConfigured } = useAgent()
 
   return (
     <div className="flex h-full flex-col overflow-hidden lg:flex-row">
@@ -62,10 +65,24 @@ export default function LabView({ lesson, courseId }: Props) {
           </div>
         )}
 
-        {/* Progressive hints */}
-        {meta.hints && meta.hints.length > 0 && (
+        {/* Progressive hints — solo si el agente NO está configurado */}
+        {!isConfigured && meta.hints && meta.hints.length > 0 && (
           <div className={`p-4 ${checks.length ? '' : 'border-t border-border'}`}>
             <HintPanel hints={meta.hints} courseId={courseId} lessonId={meta.id} />
+          </div>
+        )}
+
+        {/* Agent panel — reemplaza hints cuando el agente está activo */}
+        {(checks.length > 0 || result?.error || isConfigured) && (
+          <div className="border-t border-border p-4">
+            <AgentPanel
+              code={code}
+              language={lang}
+              labTitle={meta.title}
+              checks={checks}
+              error={result?.error}
+              testResults={result?.testResults}
+            />
           </div>
         )}
       </div>

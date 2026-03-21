@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Github, Sun, Moon, LogIn, LogOut } from 'lucide-react'
+import { Github, Sun, Moon, LogIn, LogOut, Bot } from 'lucide-react'
 import type { Theme } from '../hooks/useTheme'
 import { useAuth } from '../context/AuthContext'
+import { useAgent } from '../context/AgentContext'
 
 interface Props {
   theme: Theme
@@ -10,6 +11,7 @@ interface Props {
 
 export default function Header({ theme, onToggleTheme }: Props) {
   const { user, login, logout } = useAuth()
+  const { openSettings, isConfigured } = useAgent()
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-base">
@@ -38,6 +40,20 @@ export default function Header({ theme, onToggleTheme }: Props) {
           <span className="rounded border border-green/30 bg-green/10 px-2 py-0.5 text-green text-xs">
             BETA
           </span>
+
+          {/* Agent settings */}
+          <button
+            onClick={openSettings}
+            aria-label="Configurar agente IA"
+            title={isConfigured ? 'Agente IA configurado' : 'Configurar agente IA'}
+            className={`flex items-center justify-center border w-7 h-7 transition-colors ${
+              isConfigured
+                ? 'border-purple/40 text-purple hover:border-purple hover:bg-purple/10'
+                : 'border-border text-muted hover:border-purple/50 hover:text-purple'
+            }`}
+          >
+            <Bot size={13} />
+          </button>
 
           {/* Theme toggle */}
           <button

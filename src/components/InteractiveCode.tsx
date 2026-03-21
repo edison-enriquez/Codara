@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { Play, RotateCcw, Copy, Check, Terminal } from 'lucide-react'
 import { useCodeRunner } from '../hooks/useCodeRunner'
 import { highlightCode } from '../utils/highlight'
+import CodeEditor from './CodeEditor'
 
 const LANG_RUNNABLE = new Set(['javascript', 'js', 'typescript', 'ts', 'python', 'py', 'c'])
 const LANG_LABEL: Record<string, string> = {
@@ -31,15 +32,19 @@ export default function InteractiveCode({ lang, code, executable = false }: Prop
   const isC = normalizedLang === 'c'
   const { result, state, run, reset } = useCodeRunner(runLang)
   const [copied, setCopied] = useState(false)
+  const [editableCode, setEditableCode] = useState(code)
   const codeRef = useRef<HTMLPreElement>(null)
 
-  const handleRun = () => run(code)
-  const handleReset = () => reset()
+  const isDirty = editableCode !== code
+  const handleRun = () => run(editableCode)
+  const handleReset = () => { setEditableCode(code); reset() }
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(code)
+    await navigator.clipboard.writeText(canRun ? editableCode : code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const editorHeight = `${Math.max(80, editableCode.split('\n').length * 21 + 24)}px`
 
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-border bg-base shadow-md">
@@ -58,10 +63,11 @@ export default function InteractiveCode({ lang, code, executable = false }: Prop
           </button>
           {canRun && (
             <>
-              {state !== 'idle' && (
+              {(state !== 'idle' || isDirty) && (
                 <button
                   onClick={handleReset}
                   className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted hover:bg-elevated hover:text-text transition-colors"
+                  title="Restaurar código original"
                 >
                   <RotateCcw size={12} />
                 </button>
@@ -88,16 +94,25 @@ export default function InteractiveCode({ lang, code, executable = false }: Prop
         </div>
       </div>
 
-      {/* Code — syntax highlighted */}
-      <pre
-        ref={codeRef}
-        className="hljs overflow-x-auto p-4 text-sm font-mono leading-relaxed bg-base"
-      >
-        <code
-          // highlight.js escapa el HTML internamente — seguro para contenido del repo
-          dangerouslySetInnerHTML={{ __html: highlightCode(code, normalizedLang) }}
+      {/* Code — editable Monaco cuando es ejecutable, highlighted estático si no */}
+      {canRun ? (
+        <CodeEditor
+          value={editableCode}
+          onChange={setEditableCode}
+          language={normalizedLang}
+          height={editorHeight}
         />
-      </pre>
+      ) : (
+        <pre
+          ref={codeRef}
+          className="hljs overflow-x-auto p-4 text-sm font-mono leading-relaxed bg-base"
+        >
+          <code
+            // highlight.js escapa el HTML internamente — seguro para contenido del repo
+            dangerouslySetInnerHTML={{ __html: highlightCode(code, normalizedLang) }}
+          />
+        </pre>
+      )}
 
       {/* Output */}
       {result && (

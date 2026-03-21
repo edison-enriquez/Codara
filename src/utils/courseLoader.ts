@@ -222,14 +222,16 @@ export function parseLesson(raw: string): ParsedLesson {
 
 // ─── Loaders ─────────────────────────────────────────────────────────────────
 
+const BASE = import.meta.env.BASE_URL
+
 export async function loadCourseIndex(): Promise<CourseSummary[]> {
-  const res = await fetch('/courses/index.json')
+  const res = await fetch(`${BASE}courses/index.json`)
   if (!res.ok) throw new Error('No se pudo cargar el índice de cursos')
   return res.json()
 }
 
 export async function loadCourseData(courseId: string): Promise<CourseData> {
-  const res = await fetch(`/courses/${courseId}/meta.json`)
+  const res = await fetch(`${BASE}courses/${courseId}/meta.json`)
   if (!res.ok) throw new Error(`No se pudo cargar el curso "${courseId}"`)
   const data = await res.json()
 
@@ -242,7 +244,7 @@ export async function loadCourseData(courseId: string): Promise<CourseData> {
 }
 
 export async function loadLessonFile(courseId: string, fileName: string): Promise<ParsedLesson> {
-  const res = await fetch(`/courses/${courseId}/${fileName}`)
+  const res = await fetch(`${BASE}courses/${courseId}/${fileName}`)
   if (!res.ok) throw new Error(`No se pudo cargar la lección "${fileName}"`)
   const raw = await res.text()
   return parseLesson(raw)
