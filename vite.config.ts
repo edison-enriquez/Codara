@@ -8,6 +8,7 @@ export default defineConfig({
     exclude: ['@monaco-editor/react'],
   },
   server: {
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
