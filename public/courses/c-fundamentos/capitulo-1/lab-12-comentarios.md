@@ -105,11 +105,12 @@ int main(void)
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("output-10800", 1, "Debe imprimir: There are 10800 seconds in 3 hours.");
-    TEST("output-180", 1, "Debe imprimir: There are 180 seconds in 3 minutes.");
-    TEST("output-300", 1, "Debe imprimir: There are 300 seconds in 5 minutes.");
-}
+```c io-tests
+[
+  {
+    "name": "Salida completa correcta",
+    "input": "",
+    "expected": "There are 10800 seconds in 3 hours.\nThere are 180 seconds in 3 minutes.\nThere are 300 seconds in 5 minutes."
+  }
+]
 ```

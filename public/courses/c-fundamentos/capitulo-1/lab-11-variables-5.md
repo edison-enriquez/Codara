@@ -89,12 +89,12 @@ int main(void)
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("output-q1-90", 1, "Q1 debe ser 90 días");
-    TEST("output-q2-91", 1, "Q2 debe ser 91 días");
-    TEST("output-q3-92", 1, "Q3 debe ser 92 días");
-    TEST("output-q4-92", 1, "Q4 debe ser 92 días");
-}
+```c io-tests
+[
+  {
+    "name": "Salida completa correcta",
+    "input": "",
+    "expected": "Days in Q1 of the current year: 90\nDays in Q2 of the current year: 91\nDays in Q3 of the current year: 92\nDays in Q4 of the current year: 92"
+  }
+]
 ```

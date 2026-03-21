@@ -75,9 +75,12 @@ int main()
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("output-3600", 1, "La salida debe ser: One hour is 3600 seconds");
-}
+```c io-tests
+[
+  {
+    "name": "Salida correcta",
+    "input": "",
+    "expected": "One hour is 3600 seconds"
+  }
+]
 ```

@@ -100,11 +100,12 @@ int main(void)
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("output-181", 1, "La primera mitad debe ser 181 días");
-    TEST("output-184", 1, "La segunda mitad debe ser 184 días");
-    TEST("output-365", 1, "El total debe ser 365 días");
-}
+```c io-tests
+[
+  {
+    "name": "Salida completa correcta",
+    "input": "",
+    "expected": "Days in the first half of the current year: 181\nDays in the second half of the current year: 184\nDays in the current year: 365"
+  }
+]
 ```

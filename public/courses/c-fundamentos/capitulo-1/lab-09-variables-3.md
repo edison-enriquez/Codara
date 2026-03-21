@@ -86,9 +86,12 @@ int main(void)
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("output-ip", 1, "La salida debe ser: Localhost IP is 127.0.0.1");
-}
+```c io-tests
+[
+  {
+    "name": "Salida correcta",
+    "input": "",
+    "expected": "Localhost IP is 127.0.0.1"
+  }
+]
 ```

@@ -68,10 +68,13 @@ int main()
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("output-nine", 1, "Debe imprimir: The value of nine is: 9");
-    TEST("output-ten", 1, "Debe imprimir: The value of ten is: 10");
-}
+```c io-tests
+[
+  {
+    "name": "nine = 9 y ten = 10",
+    "input": "",
+    "expected": "The value of nine is: 9\nThe value of ten is: 10"
+  }
+]
+
 ```

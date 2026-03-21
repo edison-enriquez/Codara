@@ -87,7 +87,12 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("tiene-main", 1, "La función main está definida");
+    CAPTURE_STUDENT_OUTPUT()
+    /* Verificar que imprime algo */
+    TEST("imprime-algo", __student_out[0] != '\0', "El programa debe imprimir tu nombre usando puts()");
+    /* Contar líneas: 3 llamadas a puts() generan 3 saltos de línea */
+    int __lines = 0;
+    for (int i = 0; __student_out[i]; i++) if (__student_out[i] == '\n') __lines++;
+    TEST("imprime-tres-veces", __lines >= 3, "Debes llamar puts() exactamente 3 veces");
 }
 ```

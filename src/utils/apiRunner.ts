@@ -254,7 +254,12 @@ export async function runCTests(code: string, testCode: string): Promise<RunResu
 // ─── IO tests: corre el programa con stdin y compara stdout ──────────────────
 
 function normalizeOutput(s: string): string {
-  return s.replace(/\r\n/g, '\n').trimEnd()
+  return s
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())   // quita espacios/tabs al final de cada línea
+    .join('\n')
+    .trimEnd()                        // quita líneas vacías al final
 }
 
 export async function runCIOTests(code: string, ioTests: IOTest[]): Promise<RunResult> {

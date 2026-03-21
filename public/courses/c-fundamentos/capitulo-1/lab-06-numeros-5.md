@@ -80,12 +80,12 @@ int main(void)
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("output-21", 1, "Debe imprimir 'The value of twenty-one is: 21'");
-    TEST("output-22", 1, "Debe imprimir 'The value of twenty-two is: 22'");
-    TEST("output-62", 1, "Debe imprimir 'The value of sixty-two is: 62'");
-    TEST("output-74", 1, "Debe imprimir 'The value of seventy-four is: 74'");
-}
+```c io-tests
+[
+  {
+    "name": "Cuatro valores hex correctos",
+    "input": "",
+    "expected": "The value of twenty-one is: 21\nThe value of twenty-two is: 22\nThe value of sixty-two is: 62\nThe value of seventy-four is: 74"
+  }
+]
 ```
