@@ -18,6 +18,24 @@
         } catch (e) {}
       })()
     </script>
+    <!-- GitHub Pages SPA: restaurar ruta desde ?p= -->
+    <script>
+      (function () {
+        var redirect = sessionStorage.redirect
+        delete sessionStorage.redirect
+        if (redirect && redirect !== location.href) {
+          history.replaceState(null, null, redirect)
+        }
+        // También manejar ?p= del 404.html
+        var url = new URL(location.href)
+        var p = url.searchParams.get('p')
+        if (p) {
+          var q = url.searchParams.get('q')
+          var newPath = '/Codara' + p + (q ? '?' + q.replace(/~and~/g, '&') : '') + location.hash
+          history.replaceState(null, null, newPath)
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
