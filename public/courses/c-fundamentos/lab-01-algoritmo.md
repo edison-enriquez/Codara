@@ -78,7 +78,7 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    CAPTURE_STUDENT_OUTPUT()
+    CAPTURE_STUDENT_OUTPUT();
     TEST_OUTPUT_CONTAINS("imprime-hola-mundo",      "Hola, mundo!");
     TEST_OUTPUT_CONTAINS("imprime-aprendiendo",     "Aprendiendo C con Codara.");
 }

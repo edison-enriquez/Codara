@@ -79,12 +79,12 @@ int main(void)
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("1x1", 1*1 == 1,   "1 × 1 = 1");
-    TEST("3x4", 3*4 == 12,  "3 × 4 = 12");
-    TEST("5x5", 5*5 == 25,  "5 × 5 = 25");
-    TEST("2x3", 2*3 == 6,   "2 × 3 = 6");
-    TEST("4x5", 4*5 == 20,  "4 × 5 = 20");
-}
+```c io-tests
+[
+  {
+    "name": "Tabla de multiplicar 5x5",
+    "input": "",
+    "expected": "    1    2    3    4    5\n    2    4    6    8   10\n    3    6    9   12   15\n    4    8   12   16   20\n    5   10   15   20   25"
+  }
+]
 ```

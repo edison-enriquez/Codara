@@ -68,11 +68,8 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    float radio = 5.0;
-    double pi = 3.14159265;
-    double area = pi * radio * radio;
-    TEST("area-correcta",    area > 78.5 && area < 78.55,  "El área de radio=5 debe ser ≈78.54");
-    TEST("division-entera",  10/4 == 2,                    "División entera: 10/4 = 2");
-    TEST("division-flotante",(double)10/4 == 2.5,          "División flotante: 10.0/4 = 2.5");
+    CAPTURE_STUDENT_OUTPUT();
+    TEST_OUTPUT_CONTAINS("area-dos-dec",     "78.54");
+    TEST_OUTPUT_CONTAINS("division-flotante","2.5");
 }
 ```

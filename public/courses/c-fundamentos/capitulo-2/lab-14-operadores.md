@@ -76,13 +76,10 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    int a = 17, b = 5;
-    TEST("suma",       a + b == 22,  "17 + 5 debe ser 22");
-    TEST("resta",      a - b == 12,  "17 - 5 debe ser 12");
-    TEST("modulo",     a % b == 2,   "17 % 5 debe ser 2 (resto)");
-    TEST("precedencia",a + b * 2 == 27, "17 + 5*2 = 27 (no 44)");
-    TEST("parentesis", (a + b) * 2 == 44, "(17+5)*2 = 44");
-    int c = a; c++; TEST("incremento", c == 18, "a++ debe dar 18");
-    int d = b; d += 3; TEST("compuesto", d == 8, "b+=3 debe dar 8");
+    CAPTURE_STUDENT_OUTPUT();
+    TEST_OUTPUT_CONTAINS("suma-22",        "22");
+    TEST_OUTPUT_CONTAINS("precedencia-27", "27");
+    TEST_OUTPUT_CONTAINS("parentesis-44",  "44");
+    TEST_OUTPUT_CONTAINS("incremento-18",  "18");
 }
 ```

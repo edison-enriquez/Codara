@@ -82,12 +82,12 @@ static char __student_out[8192] = "";
 #define TEST_OUTPUT_CONTAINS(name, substr) do { \\
     __t_run++; \\
     if (strstr(__student_out, substr)) { \\
-        printf("__PASS__%s__IN__(salida del programa)__EXP__%s__ACT__encontrado\\n", name, substr); \\
+        printf("__PASS__%s__IN____EXP__%s__ACT__encontrado\\n", name, substr); \\
         __t_pass++; \\
     } else { \\
         char __excerpt[120] = "(sin salida)"; \\
         if (__student_out[0]) { strncpy(__excerpt, __student_out, 119); __excerpt[119] = '\\0'; } \\
-        printf("__FAIL__%s__IN__(salida del programa)__EXP__%s__ACT__%s\\n", name, substr, __excerpt); \\
+        printf("__FAIL__%s__IN____EXP__%s__ACT__%s\\n", name, substr, __excerpt); \\
     } \\
 } while(0)
 
@@ -159,7 +159,8 @@ function parseCTestOutput(output: string): { tests: TestResult[]; logs: string[]
 
       if (inIdx !== -1 && expIdx !== -1 && actIdx !== -1) {
         const name     = rest.slice(0, inIdx)
-        const input    = rest.slice(inIdx + 6, expIdx)
+        const rawInput = rest.slice(inIdx + 6, expIdx)
+        const input    = rawInput.length > 0 ? rawInput : undefined
         const expected = rest.slice(expIdx + 7, actIdx)
         const actual   = rest.slice(actIdx + 7)
         tests.push({ name, passed, input, expected, actual })

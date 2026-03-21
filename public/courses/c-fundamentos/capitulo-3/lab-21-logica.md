@@ -86,11 +86,10 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    int edad=22, ingresos=1500, historial=800, enDeuda=0;
-    TEST("mayor-edad",   edad >= 18,                              "22 es mayor de edad");
-    TEST("cuenta-ok",    edad >= 18 && !enDeuda,                  "Puede abrir cuenta");
-    TEST("prestamo-ok",  edad>=18 && (ingresos>=2000||historial>=750) && !enDeuda, "Puede pedir préstamo con buen historial");
-    TEST("bajo-riesgo",  !enDeuda && historial >= 700,            "Es cliente de bajo riesgo");
-    TEST("not-deuda",    !enDeuda == 1,                           "!0 es verdadero (1)");
+    CAPTURE_STUDENT_OUTPUT();
+    TEST_OUTPUT_CONTAINS("mayor-edad", "mayor");
+    TEST_OUTPUT_CONTAINS("cuenta",     "cuenta");
+    TEST_OUTPUT_CONTAINS("prestamo",   "stamo");
+    TEST_OUTPUT_CONTAINS("bajo-riesgo","riesgo");
 }
 ```

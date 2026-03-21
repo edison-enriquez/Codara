@@ -78,14 +78,12 @@ int main(void)
 }
 ```
 
-```c tests
-void run_tests(void) {
-    TEST("precio-2dec", 1== 1, "Usa %.2f para los precios");
-    TEST("ancho-precio", 1==1, "Usa %8.2f para precios");
-    TEST("izq-prod",     1==1, "Usa %-18s para productos (izquierda)");
-    double precio = 1.25;
-    TEST("valor-precio", precio == 1.25, "Precio manzana correcto");
-    int stock = 50;
-    TEST("valor-stock",  stock == 50, "Stock manzana correcto");
-}
+```c io-tests
+[
+  {
+    "name": "Tabla de productos completa",
+    "input": "",
+    "expected": "Producto            Precio   Stock\n---------------------------------\nManzana               1.25      50\nBanana                0.89     120\nNaranja               1.50      35"
+  }
+]
 ```

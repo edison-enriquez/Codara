@@ -73,12 +73,8 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    char mayus = 'C';
-    TEST("ascii-mayus",  (int)mayus == 67,       "'C' debe tener ASCII 67");
-    TEST("a-ascii",      (int)'A' == 65,          "'A' debe tener ASCII 65");
-    TEST("diff-32",      (int)'a' - (int)'A'== 32,"Diferencia mayus/minus es 32");
-    char minus = mayus + 32; 
-    TEST("conversion",   minus == 'c',            "'C'+32 debe dar 'c'");
-    TEST("aritmetica",   'A' + 1 == 'B',          "'A'+1 debe ser 'B'");
+    CAPTURE_STUDENT_OUTPUT();
+    TEST_OUTPUT_CONTAINS("ascii-C-67","67");
+    TEST_OUTPUT_CONTAINS("ascii-c-99","99");
 }
 ```

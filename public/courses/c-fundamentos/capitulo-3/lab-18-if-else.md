@@ -78,12 +78,9 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    TEST("nota-90",  90 >= 90,              "90 o más es A");
-    TEST("nota-85",  85 >= 80 && 85 < 90,   "85 es B");
-    TEST("nota-75",  75 >= 70 && 75 < 80,   "75 es C");
-    TEST("nota-65",  65 >= 60 && 65 < 70,   "65 es D");
-    TEST("nota-50",  50 < 60,               "50 es F");
-    TEST("aprobado", 75 >= 60,              "75 aprueba");
-    TEST("reprobado",55 < 60,               "55 reprueba");
+    CAPTURE_STUDENT_OUTPUT();
+    TEST_OUTPUT_CONTAINS("muestra-nota","75");
+    TEST_OUTPUT_CONTAINS("letra-C",    "C");
+    TEST_OUTPUT_CONTAINS("aprobo",     "Aprob");
 }
 ```

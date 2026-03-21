@@ -87,7 +87,7 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    CAPTURE_STUDENT_OUTPUT()
+    CAPTURE_STUDENT_OUTPUT();
     /* Verificar que imprime algo */
     TEST("imprime-algo", __student_out[0] != '\0', "El programa debe imprimir tu nombre usando puts()");
     /* Contar líneas: 3 llamadas a puts() generan 3 saltos de línea */

@@ -73,11 +73,8 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    TEST("positivo",  42 > 0,                "42 es positivo");
-    TEST("par",       42 % 2 == 0,           "42 es par");
-    TEST("negativo",  -5 < 0,                "-5 es negativo");
-    TEST("cero",      0 == 0,                "0 es cero");
-    TEST("impar",     7 % 2 != 0,            "7 es impar");
-    TEST("mediano",   42 >= 10 && 42 < 100,  "42 es mediano (10-99)");
+    CAPTURE_STUDENT_OUTPUT();
+    TEST_OUTPUT_CONTAINS("es-positivo","positivo");
+    TEST_OUTPUT_CONTAINS("es-par",     "par");
 }
 ```

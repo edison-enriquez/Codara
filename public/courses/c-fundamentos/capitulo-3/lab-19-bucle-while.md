@@ -81,11 +81,8 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    int suma = 0, i;
-    for (i = 1; i <= 100; i++) suma += i;
-    TEST("suma-1-100",   suma == 5050,       "La suma de 1 a 100 es 5050");
-    TEST("suma-1-10",    1+2+3+4+5+6+7+8+9+10 == 55, "Suma 1-10 = 55");
-    TEST("primer-val",   1 >= 1,             "El bucle empieza en 1");
-    TEST("ultimo-val",   100 <= 100,         "El bucle termina en 100");
+    CAPTURE_STUDENT_OUTPUT();
+    TEST_OUTPUT_CONTAINS("numeros-del-1-al-10","1 2 3 4 5 6 7 8 9 10");
+    TEST_OUTPUT_CONTAINS("suma-5050",          "5050");
 }
 ```

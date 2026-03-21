@@ -73,7 +73,7 @@ int main() {
 
 ```c tests
 void run_tests(void) {
-    CAPTURE_STUDENT_OUTPUT()
+    CAPTURE_STUDENT_OUTPUT();
     TEST("produce-salida", __student_out[0] != '\0', "El programa debe imprimir algo con printf");
 }
 ```

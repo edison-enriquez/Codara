@@ -58,10 +58,10 @@ function TestItem({ t }: { t: TestResult }) {
       {open && hasDetail && (
         <div className="border-t border-white/5 px-3 pb-3 pt-2.5">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 text-[10px] font-mono">
-            {t.input !== undefined && (
+            {(t.expected !== undefined || t.actual !== undefined) && (
               <div>
                 <div className="mb-1 text-[9px] uppercase tracking-wider text-muted/50">Entrada</div>
-                <pre className="rounded-lg bg-black/30 p-2 text-text/70 whitespace-pre-wrap break-all leading-4">{t.input}</pre>
+                <pre className="rounded-lg bg-black/30 p-2 text-text/70 whitespace-pre-wrap break-all leading-4">{t.input ?? ''}</pre>
               </div>
             )}
             {t.expected !== undefined && (
