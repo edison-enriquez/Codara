@@ -82,11 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   function login() {
-    const serverUrl = import.meta.env.VITE_SERVER_URL
+    const raw = import.meta.env.VITE_SERVER_URL as string | undefined
+    const serverUrl = raw?.replace(/\/+$/, '')  // quitar trailing slash
     if (!serverUrl) {
-      alert('El login con GitHub requiere un servidor backend.\nConfigura el secret SERVER_URL en GitHub Actions apuntando a tu servidor desplegado.')
+      console.error('[Auth] VITE_SERVER_URL no está configurado. Añade SERVER_URL como secret en GitHub Actions.')
+      window.alert('Login no disponible: el servidor no está configurado.\nContacta al administrador.')
       return
     }
+    console.log('[Auth] Redirigiendo a', serverUrl + '/auth/github')
     window.location.href = `${serverUrl}/auth/github`
   }
 
