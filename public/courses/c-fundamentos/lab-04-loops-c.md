@@ -76,9 +76,9 @@ int main() {
 
 ```c tests
 void run_tests(void) {
-    TEST("sumar-hasta-10",  sumar_hasta(10)  == 55,   "sumar_hasta(10) debe ser 55");
-    TEST("sumar-hasta-1",   sumar_hasta(1)   == 1,    "sumar_hasta(1) debe ser 1");
-    TEST("sumar-hasta-0",   sumar_hasta(0)   == 0,    "sumar_hasta(0) debe ser 0");
-    TEST("sumar-hasta-100", sumar_hasta(100) == 5050, "sumar_hasta(100) debe ser 5050");
+    TEST_EQ_INT("sumar-hasta-10",  "sumar_hasta(10)",  sumar_hasta(10),  55);
+    TEST_EQ_INT("sumar-hasta-1",   "sumar_hasta(1)",   sumar_hasta(1),   1);
+    TEST_EQ_INT("sumar-hasta-0",   "sumar_hasta(0)",   sumar_hasta(0),   0);
+    TEST_EQ_INT("sumar-hasta-100", "sumar_hasta(100)", sumar_hasta(100), 5050);
 }
 ```

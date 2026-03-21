@@ -78,9 +78,9 @@ int main(void)
 
 ```c tests
 void run_tests(void) {
-    // El programa debe compilar — eso ya es un éxito
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
-    TEST("tiene-main", 1, "La función main está definida");
+    CAPTURE_STUDENT_OUTPUT()
+    TEST_OUTPUT_CONTAINS("imprime-hola-mundo",      "Hola, mundo!");
+    TEST_OUTPUT_CONTAINS("imprime-aprendiendo",     "Aprendiendo C con Codara.");
 }
 ```
 

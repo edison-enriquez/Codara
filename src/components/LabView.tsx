@@ -1,29 +1,37 @@
 import { useState } from 'react'
-import { Play, RotateCcw, CheckCircle2, Server } from 'lucide-react'
+import { Play, RotateCcw, CheckCircle2, Server, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import CodeEditor from './CodeEditor'
 import HintPanel from './HintPanel'
 import TestPanel from './TestPanel'
 import MarkdownRenderer from './MarkdownRenderer'
-import LiveAnalysis from './LiveAnalysis'
 import AgentPanel from './AgentPanel'
 import { useCodeRunner } from '../hooks/useCodeRunner'
 import { useAgent } from '../context/AgentContext'
 import { markComplete } from '../utils/courseLoader'
-import type { ParsedLesson } from '../types'
+import type { ParsedLesson, LessonMeta } from '../types'
 
 interface Props {
   lesson: ParsedLesson
   courseId: string
+  prevLesson?: LessonMeta | null
+  nextLesson?: LessonMeta | null
 }
 
-export default function LabView({ lesson, courseId }: Props) {
-  const { meta, displayContent, starterCode = '', testCode = '' } = lesson
+export default function LabView({ lesson, courseId, prevLesson, nextLesson }: Props) {
+  const { meta, displayContent, starterCode = '', testCode = '', ioTests = [] } = lesson
   const lang = meta.language === 'python' ? 'python' : meta.language === 'c' ? 'c' : 'javascript'
 
   const [code, setCode] = useState(starterCode)
-  const { result, state, runTests, reset } = useCodeRunner(lang)
+  const { result, state, runTests, runIOTests, reset } = useCodeRunner(lang)
 
-  const handleRun = () => runTests(code, testCode)
+  const hasIOTests = ioTests.length > 0
+  const hasTests   = hasIOTests || !!testCode
+
+  const handleRun = () => {
+    if (hasIOTests) runIOTests(code, ioTests)
+    else runTests(code, testCode)
+  }
   const handleReset = () => {
     setCode(starterCode)
     reset()
@@ -57,13 +65,6 @@ export default function LabView({ lesson, courseId }: Props) {
 
           <MarkdownRenderer content={displayContent} />
         </div>
-
-        {/* Live analysis (CryptoZombies-style) */}
-        {checks.length > 0 && (
-          <div className="border-t border-border p-4">
-            <LiveAnalysis code={code} checks={checks} />
-          </div>
-        )}
 
         {/* Progressive hints — solo si el agente NO está configurado */}
         {!isConfigured && meta.hints && meta.hints.length > 0 && (
@@ -107,7 +108,7 @@ export default function LabView({ lesson, courseId }: Props) {
             </button>
             <button
               onClick={handleRun}
-              disabled={state === 'running' || !testCode}
+              disabled={state === 'running' || !hasTests}
               className="flex items-center gap-2 rounded bg-blue px-4 py-1.5 text-xs font-medium text-base hover:bg-blue/80 disabled:opacity-50 transition-colors"
             >
               {state === 'running' ? (
@@ -133,6 +134,40 @@ export default function LabView({ lesson, courseId }: Props) {
         {/* Test Results */}
         <div className="min-h-0 flex-1 overflow-hidden border-t border-border bg-base">
           <TestPanel result={result} state={state} />
+        </div>
+
+        {/* Nav inferior — siempre visible */}
+        <div className="shrink-0 flex items-center justify-between border-t border-border bg-surface px-4 py-2">
+          {prevLesson ? (
+            <Link
+              to={`/course/${courseId}/${prevLesson.id}`}
+              className="flex items-center gap-1.5 border border-border px-3 py-1.5 text-xs text-muted hover:border-green/40 hover:text-text uppercase tracking-wider transition-colors"
+            >
+              <ChevronLeft size={12} />
+              Anterior
+            </Link>
+          ) : <div />}
+
+          {nextLesson ? (
+            <Link
+              to={`/course/${courseId}/${nextLesson.id}`}
+              className={`flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
+                allPassed
+                  ? 'border-green/50 bg-green/10 text-green hover:bg-green/20 animate-fade-in'
+                  : 'border-border text-muted hover:border-green/40 hover:text-text'
+              }`}
+            >
+              {allPassed ? '¡Siguiente!' : 'Siguiente'}
+              <ChevronRight size={12} />
+            </Link>
+          ) : allPassed ? (
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 border border-green/50 bg-green/10 px-3 py-1.5 text-xs font-medium text-green hover:bg-green/20 uppercase tracking-wider transition-colors animate-fade-in"
+            >
+              ¡Curso completado! <ChevronRight size={12} />
+            </Link>
+          ) : <div />}
         </div>
       </div>
     </div>

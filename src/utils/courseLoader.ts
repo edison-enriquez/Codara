@@ -5,6 +5,7 @@ import type {
   ParsedLesson,
   Segment,
   Chapter,
+  IOTest,
 } from '../types'
 
 // ─── Frontmatter parser (subset YAML con soporte de objetos anidados) ────────
@@ -171,6 +172,13 @@ export function segmentMarkdown(markdown: string): Segment[] {
         segments.push({ type: 'exec', lang, content })
       } else if (meta.startsWith('lab')) {
         segments.push({ type: 'lab', lang, content })
+      } else if (meta.startsWith('io-tests') || meta.startsWith('io tests')) {
+        try {
+          const items = JSON.parse(content)
+          segments.push({ type: 'io-tests', lang, items })
+        } catch {
+          // JSON malformado — ignorar silenciosamente
+        }
       } else if (meta.startsWith('test')) {
         segments.push({ type: 'tests', lang, content })
       } else {
@@ -194,6 +202,7 @@ export function parseLesson(raw: string): ParsedLesson {
 
   let starterCode: string | undefined
   let testCode: string | undefined
+  let ioTests: IOTest[] | undefined
   const displaySegments: Segment[] = []
 
   for (const seg of segments) {
@@ -201,6 +210,8 @@ export function parseLesson(raw: string): ParsedLesson {
       starterCode = seg.content
     } else if (seg.type === 'tests') {
       testCode = seg.content
+    } else if (seg.type === 'io-tests') {
+      ioTests = seg.items
     } else {
       displaySegments.push(seg)
     }
@@ -217,7 +228,7 @@ export function parseLesson(raw: string): ParsedLesson {
     })
     .join('\n')
 
-  return { meta, content, starterCode, testCode, displayContent }
+  return { meta, content, starterCode, testCode, ioTests, displayContent }
 }
 
 // ─── Loaders ─────────────────────────────────────────────────────────────────

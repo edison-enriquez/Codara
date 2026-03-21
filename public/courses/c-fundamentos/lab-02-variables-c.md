@@ -73,11 +73,7 @@ int main() {
 
 ```c tests
 void run_tests(void) {
-    // Test 1: variables básicas deben estar declaradas
-    // (La verificación real se hace en el análisis en tiempo real)
-    // Aquí ejecutamos el programa y verificamos la salida
-
-    // Compilar sin errores ya es un test implícito
-    TEST("compile-ok", 1, "El programa debe compilar sin errores");
+    CAPTURE_STUDENT_OUTPUT()
+    TEST("produce-salida", __student_out[0] != '\0', "El programa debe imprimir algo con printf");
 }
 ```

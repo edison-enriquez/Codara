@@ -82,7 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   function login() {
-    window.location.href = '/auth/github'
+    const serverUrl = import.meta.env.VITE_SERVER_URL ?? ''
+    window.location.href = `${serverUrl}/auth/github`
   }
 
   function logout() {

@@ -358,8 +358,8 @@ async function executeCode(language, code, testCode) {
 // ─── Auth GitHub OAuth ────────────────────────────────────────────────────────
 
 async function handleAuthRoutes(req, res, parsedUrl) {
-  const CLIENT_ID     = process.env.GITHUB_CLIENT_ID
-  const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET
+  const CLIENT_ID     = process.env.CLIENT_ID
+  const CLIENT_SECRET = process.env.CLIENT_SECRET
   const JWT_SECRET    = process.env.JWT_SECRET || 'dev-secret-change-in-production'
 
   const redirectError = (errKey) => {
@@ -371,7 +371,7 @@ async function handleAuthRoutes(req, res, parsedUrl) {
   if (req.method === 'GET' && parsedUrl.pathname === '/auth/github') {
     if (!CLIENT_ID) {
       res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
-      res.end('Error: GITHUB_CLIENT_ID no configurado en server/.env.server')
+      res.end('Error: CLIENT_ID no configurado en server/.env.server')
       return
     }
     const state = crypto.randomBytes(16).toString('hex')
@@ -509,7 +509,7 @@ const server = http.createServer(async (req, res) => {
       ok: true,
       runtime: RUNTIME ?? 'gcc-local',
       pid: process.pid,
-      authConfigured: !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+      authConfigured: !!(process.env.CLIENT_ID && process.env.CLIENT_SECRET),
     }))
     return
   }

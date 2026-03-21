@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { runCode, runCodeTests } from '../utils/codeRunner'
-import { runCCode, runCTests } from '../utils/apiRunner'
-import type { RunResult } from '../types'
+import { runCCode, runCTests, runCIOTests } from '../utils/apiRunner'
+import type { RunResult, IOTest } from '../types'
 
 export type RunState = 'idle' | 'running' | 'done' | 'error'
 
@@ -27,10 +27,18 @@ export function useCodeRunner(language: string) {
     setState(r.error && !r.testResults?.length ? 'error' : 'done')
   }, [language, isC])
 
+  const runIOTests = useCallback(async (solution: string, ioTests: IOTest[]) => {
+    setState('running')
+    setResult(null)
+    const r = isC ? await runCIOTests(solution, ioTests) : { logs: [], error: 'IO tests solo disponibles para C', testResults: [] }
+    setResult(r)
+    setState(r.error && !r.testResults?.length ? 'error' : 'done')
+  }, [isC])
+
   const reset = useCallback(() => {
     setResult(null)
     setState('idle')
   }, [])
 
-  return { result, state, run, runTests, reset }
+  return { result, state, run, runTests, runIOTests, reset }
 }

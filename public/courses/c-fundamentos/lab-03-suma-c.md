@@ -74,10 +74,10 @@ int main() {
 
 ```c tests
 void run_tests(void) {
-    TEST("suma-positivos",   suma(3, 4)    == 7,  "suma(3, 4) debe ser 7");
-    TEST("suma-cero",        suma(0, 0)    == 0,  "suma(0, 0) debe ser 0");
-    TEST("suma-negativos",   suma(-2, -3)  == -5, "suma(-2, -3) debe ser -5");
-    TEST("suma-mixta",       suma(-1, 5)   == 4,  "suma(-1, 5) debe ser 4");
-    TEST("suma-grande",      suma(100, 200) == 300, "suma(100, 200) debe ser 300");
+    TEST_EQ_INT("suma-positivos",  "suma(3, 4)",     suma(3, 4),     7);
+    TEST_EQ_INT("suma-cero",       "suma(0, 0)",     suma(0, 0),     0);
+    TEST_EQ_INT("suma-negativos",  "suma(-2, -3)",   suma(-2, -3),  -5);
+    TEST_EQ_INT("suma-mixta",      "suma(-1, 5)",    suma(-1, 5),    4);
+    TEST_EQ_INT("suma-grande",     "suma(100, 200)", suma(100, 200), 300);
 }
 ```

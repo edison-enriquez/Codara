@@ -1,10 +1,96 @@
-import { CheckCircle2, XCircle, Terminal, Loader2 } from 'lucide-react'
-import type { RunResult } from '../types'
+import { useState } from 'react'
+import { CheckCircle2, XCircle, Terminal, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import type { RunResult, TestResult } from '../types'
 import type { RunState } from '../hooks/useCodeRunner'
 
 interface Props {
   result: RunResult | null
   state: RunState
+}
+
+// Extrae un preview corto de la entrada para mostrar en la fila colapsada
+function inputPreview(input: string | undefined): string {
+  if (!input) return ''
+  const oneLine = input.replace(/\n/g, ' ').trim()
+  return oneLine.length > 24 ? oneLine.slice(0, 24) + '…' : oneLine
+}
+
+function TestItem({ t }: { t: TestResult }) {
+  const [open, setOpen] = useState(false)
+  const hasDetail = t.input !== undefined || t.expected !== undefined || t.actual !== undefined
+
+  return (
+    <div className={`overflow-hidden rounded-lg border transition-colors ${
+      t.passed ? 'border-green/20 bg-green/5' : 'border-red/20 bg-red/5'
+    }`}>
+      {/* Row header */}
+      <button
+        className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-white/[0.02] transition-colors"
+        onClick={() => hasDetail && setOpen((o) => !o)}
+        disabled={!hasDetail}
+      >
+        {t.passed
+          ? <CheckCircle2 size={14} className="shrink-0 text-green" />
+          : <XCircle      size={14} className="shrink-0 text-red" />}
+
+        <span className={`flex-1 truncate text-xs font-medium ${t.passed ? 'text-green' : 'text-red'}`}>
+          {t.name}
+        </span>
+
+        {t.input !== undefined && (
+          <span className="font-mono text-[10px] text-muted/60 truncate max-w-[120px]">
+            → {inputPreview(t.input)}
+          </span>
+        )}
+
+        <span className={`text-[9px] font-bold uppercase tracking-wider shrink-0 ${t.passed ? 'text-green' : 'text-red'}`}>
+          {t.passed ? 'PASS' : 'FAIL'}
+        </span>
+
+        {hasDetail && (
+          <span className="text-muted/50 shrink-0">
+            {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </span>
+        )}
+      </button>
+
+      {/* Expanded detail: 3-column grid */}
+      {open && hasDetail && (
+        <div className="border-t border-white/5 px-3 pb-3 pt-2.5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 text-[10px] font-mono">
+            {t.input !== undefined && (
+              <div>
+                <div className="mb-1 text-[9px] uppercase tracking-wider text-muted/50">Entrada</div>
+                <pre className="rounded-lg bg-black/30 p-2 text-text/70 whitespace-pre-wrap break-all leading-4">{t.input}</pre>
+              </div>
+            )}
+            {t.expected !== undefined && (
+              <div>
+                <div className="mb-1 text-[9px] uppercase tracking-wider text-muted/50">Esperado</div>
+                <pre className="rounded-lg bg-black/30 p-2 text-text/70 whitespace-pre-wrap break-all leading-4">{t.expected}</pre>
+              </div>
+            )}
+            {t.actual !== undefined && (
+              <div>
+                <div className={`mb-1 text-[9px] uppercase tracking-wider ${t.passed ? 'text-green/60' : 'text-red/60'}`}>Obtenido</div>
+                <pre className={`rounded-lg p-2 whitespace-pre-wrap break-all leading-4 ${
+                  t.passed ? 'bg-green/10 text-green/80' : 'bg-red/10 text-red/80'
+                }`}>{t.actual || '(sin salida)'}</pre>
+              </div>
+            )}
+          </div>
+          {t.error && (
+            <p className="mt-2 font-sans text-xs text-red/70">{t.error}</p>
+          )}
+        </div>
+      )}
+
+      {/* Error legacy (sin campos ricos) */}
+      {!hasDetail && t.error && (
+        <div className="border-t border-white/5 px-3 py-2 font-mono text-xs text-red/70">{t.error}</div>
+      )}
+    </div>
+  )
 }
 
 export default function TestPanel({ result, state }: Props) {
@@ -33,11 +119,9 @@ export default function TestPanel({ result, state }: Props) {
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       {/* Summary bar */}
-      <div
-        className={`flex items-center justify-between border-b px-4 py-2 text-sm font-medium ${
-          allPassed ? 'border-green/20 bg-green/10 text-green' : 'border-border bg-surface text-text'
-        }`}
-      >
+      <div className={`flex items-center justify-between border-b px-4 py-2 text-sm font-medium ${
+        allPassed ? 'border-green/20 bg-green/10 text-green' : 'border-border bg-surface text-text'
+      }`}>
         <span>
           {total > 0
             ? allPassed
@@ -68,33 +152,10 @@ export default function TestPanel({ result, state }: Props) {
 
       {/* Test list */}
       <div className="flex-1 space-y-1 p-3">
-        {tests.map((t, i) => (
-          <div
-            key={i}
-            className={`rounded-lg border px-3 py-2.5 ${
-              t.passed
-                ? 'border-green/20 bg-green/5'
-                : 'border-red/20 bg-red/5'
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              {t.passed ? (
-                <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-green" />
-              ) : (
-                <XCircle size={14} className="mt-0.5 shrink-0 text-red" />
-              )}
-              <div className="min-w-0">
-                <p className={`text-sm font-medium ${t.passed ? 'text-green' : 'text-red'}`}>{t.name}</p>
-                {t.error && (
-                  <p className="mt-0.5 font-mono text-xs text-red/70 break-words">{t.error}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+        {tests.map((t, i) => <TestItem key={i} t={t} />)}
       </div>
 
-      {/* Console logs — always visible when there is a result */}
+      {/* Console logs */}
       {result && (
         <div className="border-t border-border">
           <div className="flex items-center gap-1.5 border-b border-border/50 bg-elevated px-3 py-1.5">
@@ -110,7 +171,7 @@ export default function TestPanel({ result, state }: Props) {
                 {l}
               </div>
             ))}
-            {result.logs.length === 0 && !result.error && (
+            {result.logs.length === 0 && !result.error && !tests.length && (
               <span className="text-muted/50 italic">El programa no produjo salida.</span>
             )}
           </div>

@@ -152,7 +152,12 @@ export default function CoursePage() {
         {lessonLoading || !lesson ? (
           <FullPageLoader text="Cargando lección…" />
         ) : isLab ? (
-          <LabView lesson={lesson} courseId={courseId!} />
+          <LabView
+            lesson={lesson}
+            courseId={courseId!}
+            prevLesson={prevLesson}
+            nextLesson={nextLesson}
+          />
         ) : (
           /* Lesson Reader */
           <div className="flex flex-1 flex-col overflow-hidden">

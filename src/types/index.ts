@@ -69,6 +69,7 @@ export interface ParsedLesson {
   content: string          // full markdown body
   starterCode?: string     // extracted from ```lang lab blocks
   testCode?: string        // extracted from ```lang tests blocks
+  ioTests?: IOTest[]       // extracted from ```lang io-tests blocks
   displayContent: string   // markdown without lab/tests blocks
 }
 
@@ -76,6 +77,16 @@ export interface TestResult {
   name: string
   passed: boolean
   error?: string
+  // Campos ricos (TEST_EQ_INT / TEST_EQ_STR / TEST_OUTPUT_CONTAINS / IO tests)
+  input?: string
+  expected?: string
+  actual?: string
+}
+
+export interface IOTest {
+  name: string
+  input: string      // stdin a pasar al programa
+  expected: string   // stdout esperado (se compara trimeado)
 }
 
 export interface RunResult {
@@ -84,20 +95,22 @@ export interface RunResult {
   testResults?: TestResult[]
 }
 
-export type SegmentType = 'prose' | 'exec' | 'lab' | 'tests' | 'hints' | 'code'
+export type SegmentType = 'prose' | 'exec' | 'lab' | 'tests' | 'io-tests' | 'hints' | 'code'
 
-export interface ProseSegment    { type: 'prose';  content: string }
-export interface ExecSegment     { type: 'exec';   lang: string; content: string }
-export interface LabSegment      { type: 'lab';    lang: string; content: string }
-export interface TestsSegment    { type: 'tests';  lang: string; content: string }
-export interface HintsSegment    { type: 'hints';  items: string[] }
-export interface CodeSegment     { type: 'code';   lang: string; content: string }
+export interface ProseSegment    { type: 'prose';      content: string }
+export interface ExecSegment     { type: 'exec';       lang: string; content: string }
+export interface LabSegment      { type: 'lab';        lang: string; content: string }
+export interface TestsSegment    { type: 'tests';      lang: string; content: string }
+export interface IoTestsSegment  { type: 'io-tests';   lang: string; items: IOTest[] }
+export interface HintsSegment    { type: 'hints';      items: string[] }
+export interface CodeSegment     { type: 'code';       lang: string; content: string }
 
 export type Segment =
   | ProseSegment
   | ExecSegment
   | LabSegment
   | TestsSegment
+  | IoTestsSegment
   | HintsSegment
   | CodeSegment
 
