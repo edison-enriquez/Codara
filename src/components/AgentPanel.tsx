@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Bot, Sparkles, AlertTriangle, ChevronDown, ChevronUp, Settings } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
 import { streamGroq, type Message } from '../utils/groqClient'
@@ -23,6 +25,51 @@ function evaluateCheck(check: CodeCheck, code: string): boolean {
   } catch {
     return false
   }
+}
+
+// ─── Markdown components para la respuesta del agente ──────────────────────
+
+const agentMdComponents = {
+  p: ({ children }: React.PropsWithChildren) => (
+    <p className="mb-2 text-text/85">{children}</p>
+  ),
+  h2: ({ children }: React.PropsWithChildren) => (
+    <h2 className="mb-2 mt-4 text-sm font-semibold text-text first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }: React.PropsWithChildren) => (
+    <h3 className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-muted">{children}</h3>
+  ),
+  ul: ({ children }: React.PropsWithChildren) => (
+    <ul className="mb-3 space-y-1.5">{children}</ul>
+  ),
+  ol: ({ children }: React.PropsWithChildren) => (
+    <ol className="mb-3 ml-4 list-decimal space-y-1.5 text-text/85">{children}</ol>
+  ),
+  li: ({ children, className }: React.PropsWithChildren<{ className?: string }>) => {
+    const isTask = className?.includes('task-list-item')
+    return isTask ? (
+      <li className="flex items-start gap-2 list-none">{children}</li>
+    ) : (
+      <li className="ml-4 list-disc text-text/85 leading-6">{children}</li>
+    )
+  },
+  input: ({ checked }: React.InputHTMLAttributes<HTMLInputElement>) =>
+    checked ? (
+      <span className="mt-0.5 flex-shrink-0 rounded-sm bg-green/15 px-1 text-xs font-bold text-green">✓</span>
+    ) : (
+      <span className="mt-0.5 flex-shrink-0 rounded-sm bg-red/15 px-1 text-xs font-bold text-red">✗</span>
+    ),
+  strong: ({ children }: React.PropsWithChildren) => (
+    <strong className="font-semibold text-text">{children}</strong>
+  ),
+  code: ({ children, className }: React.HTMLAttributes<HTMLElement>) =>
+    className?.startsWith('language-') ? (
+      <pre className="my-2 overflow-x-auto rounded bg-surface px-3 py-2 text-xs font-mono text-text/90">
+        <code>{children}</code>
+      </pre>
+    ) : (
+      <code className="rounded bg-surface px-1 py-0.5 text-xs font-mono text-green">{children}</code>
+    ),
 }
 
 export default function AgentPanel({ code, language, labTitle, checks, error, testResults }: Props) {
@@ -57,11 +104,29 @@ export default function AgentPanel({ code, language, labTitle, checks, error, te
     stream([
       {
         role: 'system',
-        content: `Eres un tutor amigable de programación. El estudiante aprende ${language}. Responde siempre en español, de forma concisa y alentadora. No des el código completo, guía con pistas específicas.`,
+        content: `Eres un tutor amigable de programación. El estudiante aprende ${language}. Responde siempre en español, de forma concisa y alentadora. No des el código completo, guía con pistas específicas. Usa formato Markdown con listas de verificación GFM (- [x] / - [ ]).`,
       },
       {
         role: 'user',
-        content: `Lab: "${labTitle}"\n\nRequisitos evaluados:\n${checkList}\n\nCódigo del estudiante:\n\`\`\`${language}\n${code}\n\`\`\`\n\nPara cada requisito NO cumplido, explica brevemente por qué falla y cómo corregirlo. Para los cumplidos, un breve elogio. Sé conciso y usa formato Markdown.`,
+        content: `Lab: "${labTitle}"
+
+Requisitos evaluados:
+${checkList}
+
+Código del estudiante:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Responde con este formato exacto:
+
+## Resultados
+
+Una lista de verificación donde cada ítem es un requisito. Usa \`- [x]\` si está cumplido y \`- [ ]\` si no. Agrega una frase corta de retroalimentación por cada ítem.
+
+## Guía
+
+Por cada requisito **no cumplido**, explica en 1-2 oraciones qué falta y cómo corregirlo (sin dar el código completo). Si todos están cumplidos, escribe un mensaje de felicitación.`,
       },
     ], 'checks')
   }
@@ -151,8 +216,13 @@ export default function AgentPanel({ code, language, labTitle, checks, error, te
               Pensando…
             </div>
           )}
-          <div className="whitespace-pre-wrap text-sm text-text/85 leading-relaxed">
-            {response}
+          <div className="text-sm leading-relaxed">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={agentMdComponents}
+            >
+              {response}
+            </ReactMarkdown>
             {loading && (
               <span className="ml-0.5 inline-block h-3 w-0.5 bg-purple animate-pulse" />
             )}
