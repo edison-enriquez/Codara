@@ -1,0 +1,18 @@
+{
+  "id": "javascript-intro",
+  "title": "Introducción a JavaScript",
+  "description": "Aprende JavaScript moderno con código ejecutable directamente en el navegador. Variables, funciones, arrays y más — con desafíos interactivos.",
+  "difficulty": "beginner",
+  "language": "javascript",
+  "category": "Frontend",
+  "icon": "🟨",
+  "estimatedTime": "2.5 horas",
+  "tags": ["JavaScript", "funciones", "arrays", "ES6"],
+  "lessons": [
+    "01-introduccion.md",
+    "02-variables.md",
+    "03-funciones.md",
+    "lab-01-suma.md",
+    "lab-02-strings.md"
+  ]
+}

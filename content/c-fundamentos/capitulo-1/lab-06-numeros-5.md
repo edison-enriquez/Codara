@@ -1,6 +1,6 @@
 ---
 id: "lab-06-numeros-5"
-title: "Lab 1.2.12 — Solo números: Parte 5"
+title: "Lab 1.2.12 — Solo números: Parte 5 (Hexadecimal)"
 type: lab
 language: c
 difficulty: easy

@@ -1,6 +1,6 @@
 ---
 id: "lab-11-variables-5"
-title: "Lab 1.2.17 — Variables: Parte 5"
+title: "Lab 1.2.17 — Variables: Parte 5 (Trimestres)"
 type: lab
 language: c
 difficulty: easy

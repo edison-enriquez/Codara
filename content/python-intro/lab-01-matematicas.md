@@ -1,6 +1,6 @@
 ---
 id: "lab-01-matematicas"
-title: "Lab: Funciones matemáticas en Python"
+title: "Lab: Funciones matemáticas"
 type: lab
 language: python
 difficulty: beginner

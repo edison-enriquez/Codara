@@ -257,7 +257,9 @@ export async function loadCourseData(courseId: string): Promise<CourseData> {
 export async function loadLessonFile(courseId: string, fileName: string): Promise<ParsedLesson> {
   const res = await fetch(`${BASE}courses/${courseId}/${fileName}`)
   if (!res.ok) throw new Error(`No se pudo cargar la lección "${fileName}"`)
-  const raw = await res.text()
+  // Normalizar finales de línea: CRLF/CR → LF. Sin esto, el \r rompe el
+  // parseo de fences (``` ) y el frontmatter en archivos editados en Windows.
+  const raw = (await res.text()).replace(/\r\n?/g, '\n')
   return parseLesson(raw)
 }
 

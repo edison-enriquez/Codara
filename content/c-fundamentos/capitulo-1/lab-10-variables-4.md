@@ -1,6 +1,6 @@
 ---
 id: "lab-10-variables-4"
-title: "Lab 1.2.16 — Variables: Parte 4"
+title: "Lab 1.2.16 — Variables: Parte 4 (Días del año)"
 type: lab
 language: c
 difficulty: easy

@@ -18,6 +18,12 @@ node_modules/
 dist/
 build/
 
+# Artefactos de compilación de TypeScript
+*.tsbuildinfo
+
+# Contenido generado por scripts/build-content.mjs (fuente: content/)
+public/courses/
+
 # Python
 __pycache__/
 *.py[cod]

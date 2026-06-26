@@ -29,17 +29,47 @@ npm run dev
 
 La app estará disponible en `http://localhost:5173`.
 
-## Estructura de cursos
+## Arquitectura de contenido
 
-Los cursos viven en `public/courses/`:
+El contenido sigue tres capas: **fuente cruda → contenido canónico → manifiesto generado**. La app solo consume el manifiesto.
 
 ```
-public/courses/
-  index.json            ← catálogo de cursos
+content-sources/        ← CAPA 0 · fuentes crudas (HTML edube, etc.) — NO se despliega
+content/                ← CAPA 1 · contenido canónico (la ÚNICA fuente de verdad)
   <curso-id>/
-    meta.json           ← lecciones del curso
-    leccion.md          ← lección normal
-    lab-01.md           ← laboratorio interactivo
+    course.json         ← metadata del curso + estructura ordenada (capítulos/lecciones)
+    capitulo-1/
+      leccion.md        ← lección (frontmatter manda: id, title, type)
+      lab-01.md         ← laboratorio interactivo
+        │
+        ▼  npm run build:content   (scripts/build-content.mjs)
+public/courses/         ← CAPA 2 · GENERADO (gitignored) — no editar a mano
+  index.json            ← catálogo con conteos DERIVADOS
+  <curso-id>/meta.json  ← estructura derivada de course.json + frontmatter
+  <curso-id>/**.md      ← copiados verbatim
+```
+
+**Reglas:**
+
+- `id`, `title` y `type` salen del **frontmatter** del `.md` — no se duplican en otro sitio.
+- El **orden** de las lecciones es su posición en `course.json` (no hay campo `order` que mantener).
+- `lessonsCount` / `labsCount` se **calculan**; nunca se escriben a mano.
+- `build:content` corre solo antes de `dev` y `build` (hooks `predev` / `prebuild`). Si una lección referenciada falta o su frontmatter es inválido, **el build falla**.
+
+### `course.json`
+
+```jsonc
+{
+  "id": "mi-curso", "title": "…", "description": "…",
+  "difficulty": "beginner", "language": "c", "category": "…",
+  "icon": "⚙️", "estimatedTime": "8 horas", "tags": ["…"],
+  // Con capítulos:
+  "chapters": [
+    { "id": "capitulo-1", "title": "Capítulo 1 — …",
+      "lessons": ["capitulo-1/1.0-intro.md", "capitulo-1/lab-01.md"] }
+  ]
+  // …o plano: "lessons": ["01-intro.md", "lab-01.md"]
+}
 ```
 
 ### Frontmatter de una lección
