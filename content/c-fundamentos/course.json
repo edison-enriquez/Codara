@@ -1,0 +1,65 @@
+{
+  "id": "c-fundamentos",
+  "title": "Fundamentos de Programación en C",
+  "description": "Aprende los conceptos esenciales de la programación desde cero usando el lenguaje C: desde qué es un programa hasta tipos de datos y control de flujo.",
+  "difficulty": "beginner",
+  "language": "c",
+  "category": "Programación",
+  "icon": "⚙️",
+  "estimatedTime": "8 horas",
+  "tags": ["C", "algoritmos", "compilación", "variables"],
+  "chapters": [
+    {
+      "id": "capitulo-1",
+      "title": "Capítulo 1 — Primeros pasos",
+      "lessons": [
+        "capitulo-1/1.0-lenguaje-natural.md",
+        "capitulo-1/1.1-primer-programa.md",
+        "capitulo-1/lab-01-nombre.md",
+        "capitulo-1/lab-02-numeros-1.md",
+        "capitulo-1/1.2-numeros.md",
+        "capitulo-1/lab-03-numeros-2.md",
+        "capitulo-1/lab-04-numeros-3.md",
+        "capitulo-1/lab-05-numeros-4.md",
+        "capitulo-1/lab-06-numeros-5.md",
+        "capitulo-1/lab-07-variables-1.md",
+        "capitulo-1/lab-08-variables-2.md",
+        "capitulo-1/lab-09-variables-3.md",
+        "capitulo-1/lab-10-variables-4.md",
+        "capitulo-1/lab-11-variables-5.md",
+        "capitulo-1/lab-12-comentarios.md"
+      ]
+    },
+    {
+      "id": "capitulo-2",
+      "title": "Capítulo 2 — Tipos, operadores y control",
+      "lessons": [
+        "capitulo-2/2.0-flotantes.md",
+        "capitulo-2/lab-13-flotantes.md",
+        "capitulo-2/2.1-operadores.md",
+        "capitulo-2/lab-14-operadores.md",
+        "capitulo-2/2.2-caracteres.md",
+        "capitulo-2/lab-15-caracteres.md",
+        "capitulo-2/2.3-control-flujo.md",
+        "capitulo-2/lab-16-condicionales.md",
+        "capitulo-2/2.4-entrada-salida.md",
+        "capitulo-2/lab-17-printf-formato.md"
+      ]
+    },
+    {
+      "id": "capitulo-3",
+      "title": "Capítulo 3 — Estructuras de control y lógica",
+      "lessons": [
+        "capitulo-3/3.0-if-else.md",
+        "capitulo-3/lab-18-if-else.md",
+        "capitulo-3/3.1-tipos-avanzados.md",
+        "capitulo-3/3.2-conversiones.md",
+        "capitulo-3/3.3-bucles.md",
+        "capitulo-3/lab-19-bucle-while.md",
+        "capitulo-3/lab-20-bucle-for.md",
+        "capitulo-3/3.4-logica.md",
+        "capitulo-3/lab-21-logica.md"
+      ]
+    }
+  ]
+}

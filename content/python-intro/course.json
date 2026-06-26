@@ -1,0 +1,17 @@
+{
+  "id": "python-intro",
+  "title": "Python desde Cero",
+  "description": "Primeros pasos en Python: sintaxis, variables, funciones y estructuras de datos. Ejecuta código Python en el navegador gracias a Pyodide.",
+  "difficulty": "beginner",
+  "language": "python",
+  "category": "Data & Scripts",
+  "icon": "🐍",
+  "estimatedTime": "2 horas",
+  "tags": ["Python", "funciones", "listas", "Pyodide"],
+  "lessons": [
+    "01-introduccion.md",
+    "02-funciones.md",
+    "lab-01-matematicas.md",
+    "lab-02-listas.md"
+  ]
+}

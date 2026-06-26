@@ -1,6 +1,6 @@
 ---
 id: "lab-09-variables-3"
-title: "Lab 1.2.15 — Variables: Parte 3"
+title: "Lab 1.2.15 — Variables: Parte 3 (IP)"
 type: lab
 language: c
 difficulty: easy

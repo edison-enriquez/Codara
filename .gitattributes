@@ -1,0 +1,19 @@
+# Forzar LF en todo el contenido y código de texto, en cualquier SO.
+# Evita que Windows (core.autocrlf) introduzca CRLF, que rompe el parseo
+# de fences (``` ) en el Markdown de las lecciones.
+* text=auto eol=lf
+
+*.md   text eol=lf
+*.json text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.mjs  text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+
+# Binarios: sin normalización
+*.png  binary
+*.jpg  binary
+*.svg  text eol=lf
+*.ico  binary
