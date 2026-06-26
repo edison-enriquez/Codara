@@ -1,5 +1,3 @@
-import type { AgentConfig } from '../context/AgentContext'
-
 const GROQ_BASE = 'https://api.groq.com/openai/v1'
 
 export interface Message {
@@ -7,8 +5,13 @@ export interface Message {
   content: string
 }
 
+export interface GroqOptions {
+  apiKey: string
+  model: string
+}
+
 export async function streamGroq(
-  config: AgentConfig,
+  opts: GroqOptions,
   messages: Message[],
   onChunk: (text: string) => void,
   signal?: AbortSignal
@@ -17,10 +20,10 @@ export async function streamGroq(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
+      Authorization: `Bearer ${opts.apiKey}`,
     },
     body: JSON.stringify({
-      model: config.model,
+      model: opts.model,
       messages,
       stream: true,
       max_tokens: 1024,

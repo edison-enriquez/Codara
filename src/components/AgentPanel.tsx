@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Bot, Sparkles, AlertTriangle, ChevronDown, ChevronUp, CheckCircle2, XCircle, Circle, Lock, Zap } from 'lucide-react'
+import { Bot, Sparkles, AlertTriangle, ChevronDown, ChevronUp, CheckCircle2, XCircle, Circle, Lock, Zap, Cpu, Cloud } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
-import { streamGroq, type Message } from '../utils/groqClient'
+import { streamLLM, type Message, type LoadProgress } from '../utils/llmClient'
 import type { CodeCheck, TestResult } from '../types'
 
 // ─── Helpers de evaluación (igual que LiveAnalysis) ───────────────────────────
@@ -112,7 +112,14 @@ export default function AgentPanel({ code, language, labTitle, checks, error, te
   const [checkSummary, setCheckSummary] = useState('')
   const [loading, setLoading] = useState(false)
   const [activeAction, setActiveAction] = useState<'checks' | 'error' | null>(null)
+  const [modelLoad, setModelLoad] = useState<LoadProgress | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  const isLocal = config.provider === 'webllm'
+  // Reporta el avance de descarga/init del modelo local (solo WebLLM, 1ª vez).
+  const onModelProgress = useCallback((p: LoadProgress) => {
+    setModelLoad(p.progress >= 1 ? null : p)
+  }, [])
 
   // Para "checks": acumula todo y parsea JSON al final
   const handleVerifyChecks = useCallback(async () => {
@@ -161,7 +168,7 @@ Formato de respuesta (JSON puro, sin markdown):
 
     let accumulated = ''
     try {
-      await streamGroq(config, messages, (text) => { accumulated += text }, abortRef.current.signal)
+      await streamLLM(config, messages, (text) => { setModelLoad(null); accumulated += text }, abortRef.current.signal, onModelProgress)
       const parsed = parseAgentChecks(accumulated, checks)
       if (parsed) {
         setCheckResults(parsed)
@@ -177,8 +184,9 @@ Formato de respuesta (JSON puro, sin markdown):
       if (e.name !== 'AbortError') setCheckSummary(`⚠ Error: ${e.message}`)
     } finally {
       setLoading(false)
+      setModelLoad(null)
     }
-  }, [config, code, language, labTitle, checks])
+  }, [config, code, language, labTitle, checks, onModelProgress])
 
   // Para "error": streaming de texto plano
   const handleExplainError = useCallback(async () => {
@@ -199,13 +207,14 @@ Formato de respuesta (JSON puro, sin markdown):
       },
     ]
     try {
-      await streamGroq(config, messages, (text) => setErrorResponse((prev) => prev + text), abortRef.current.signal)
+      await streamLLM(config, messages, (text) => { setModelLoad(null); setErrorResponse((prev) => prev + text) }, abortRef.current.signal, onModelProgress)
     } catch (e: any) {
       if (e.name !== 'AbortError') setErrorResponse(`⚠ Error: ${e.message}`)
     } finally {
       setLoading(false)
+      setModelLoad(null)
     }
-  }, [config, code, language, error])
+  }, [config, code, language, error, onModelProgress])
 
   const passedRequired = liveStatuses.filter((s) => s.check.required !== false && s.passed).length
   const totalRequired = liveStatuses.filter((s) => s.check.required !== false).length
@@ -299,6 +308,14 @@ Formato de respuesta (JSON puro, sin markdown):
         <div className="flex items-center gap-2">
           <Bot size={15} className="text-purple" />
           <span className="text-sm font-medium text-purple">Agente IA</span>
+          <button
+            onClick={openSettings}
+            title={isLocal ? 'Modelo local (en tu navegador). Clic para ajustes.' : 'Groq (nube). Clic para ajustes.'}
+            className="flex items-center gap-1 rounded-full bg-purple/10 px-2 py-0.5 text-[10px] font-medium text-purple/90 hover:bg-purple/20 transition-colors"
+          >
+            {isLocal ? <Cpu size={9} /> : <Cloud size={9} />}
+            {isLocal ? 'Local' : 'Nube'}
+          </button>
           {checks.length > 0 && (
             <span className="rounded-full bg-purple/15 px-2 py-0.5 text-xs text-purple">
               {passedRequired}/{totalRequired} requisitos
@@ -334,6 +351,24 @@ Formato de respuesta (JSON puro, sin markdown):
           )}
         </div>
       </div>
+
+      {/* Descarga/init del modelo local (WebLLM, primera vez) */}
+      {modelLoad && (
+        <div className="border-t border-purple/10 px-4 py-3">
+          <div className="mb-1.5 flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 text-purple">
+              <Cpu size={11} />
+              Preparando modelo local…
+            </span>
+            <span className="tabular-nums text-muted">{Math.round(modelLoad.progress * 100)}%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-elevated">
+            <div className="h-full rounded-full bg-purple transition-all duration-300" style={{ width: `${Math.round(modelLoad.progress * 100)}%` }} />
+          </div>
+          <p className="mt-1.5 truncate text-[10px] text-muted/80" title={modelLoad.text}>{modelLoad.text}</p>
+          <p className="mt-0.5 text-[10px] text-muted/60">Solo la primera vez: se descarga y queda en caché para uso offline.</p>
+        </div>
+      )}
 
       {/* Resultados */}
       {open && (
