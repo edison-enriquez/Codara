@@ -61,7 +61,7 @@ function loadLesson(courseDir, relPath) {
   if (!fm.title) fail(`${relPath}: frontmatter sin "title"`)
   if (!fm.type) fail(`${relPath}: frontmatter sin "type"`)
   else if (!VALID_TYPES.has(fm.type)) fail(`${relPath}: type "${fm.type}" inválido (usa lesson | lab)`)
-  return { id: fm.id, title: fm.title, type: fm.type, file: relPath, _abs: abs }
+  return { id: fm.id, title: fm.title, type: fm.type, difficulty: fm.difficulty, file: relPath, _abs: abs }
 }
 
 function copyInto(srcAbs, destAbs) {
@@ -105,6 +105,7 @@ for (const courseId of courseDirs) {
     order += 1
     copyInto(lesson._abs, join(OUT, courseId, relPath))
     const out = { id: lesson.id, title: lesson.title, type: lesson.type, order, file: lesson.file }
+    if (lesson.difficulty) out.difficulty = lesson.difficulty
     allLessons.push(out)
     return out
   }
