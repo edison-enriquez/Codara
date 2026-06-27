@@ -124,12 +124,12 @@ export default function CoursePage() {
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        {/* Toolbar — siempre visible, toggle según dispositivo */}
+        {/* Toolbar superior: menú + breadcrumb + navegación prev/next */}
         <div className="flex items-center gap-2 border-b border-border bg-base px-4 py-2">
           {/* Móvil: abrir overlay */}
           <button
             onClick={() => setMobileSidebarOpen(true)}
-            className="text-muted hover:text-green transition-colors lg:hidden"
+            className="shrink-0 text-muted hover:text-green transition-colors lg:hidden"
             title="Abrir menú"
           >
             <Menu size={18} />
@@ -137,12 +137,42 @@ export default function CoursePage() {
           {/* Escritorio: colapsar / expandir sidebar */}
           <button
             onClick={() => setSidebarCollapsed((v) => !v)}
-            className="hidden text-muted hover:text-green transition-colors lg:block"
+            className="hidden shrink-0 text-muted hover:text-green transition-colors lg:block"
             title={sidebarCollapsed ? 'Mostrar menú' : 'Ocultar menú'}
           >
             <Menu size={18} />
           </button>
-          <span className="truncate text-xs uppercase tracking-wider text-muted">{currentLessonMeta?.title ?? 'Lección'}</span>
+
+          {/* Breadcrumb */}
+          <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-xs">
+            <Link to="/" className="shrink-0 text-muted hover:text-green transition-colors">Cursos</Link>
+            <ChevronRight size={11} className="shrink-0 text-muted/40" />
+            <Link to={`/course/${courseId}`} className="max-w-[28vw] shrink-0 truncate text-muted hover:text-green transition-colors">
+              {course.title}
+            </Link>
+            <ChevronRight size={11} className="shrink-0 text-muted/40" />
+            <span className="truncate text-text">{currentLessonMeta?.title ?? lesson?.meta?.title ?? 'Lección'}</span>
+          </nav>
+
+          {/* Prev / Next */}
+          <div className="flex shrink-0 items-center gap-1">
+            {prevLesson ? (
+              <Link to={`/course/${courseId}/${prevLesson.id}`} title={prevLesson.title}
+                className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:border-green/40 hover:text-green transition-colors">
+                <ChevronLeft size={15} />
+              </Link>
+            ) : (
+              <span className="flex h-7 w-7 items-center justify-center rounded border border-border/50 text-muted/30"><ChevronLeft size={15} /></span>
+            )}
+            {nextLesson ? (
+              <Link to={`/course/${courseId}/${nextLesson.id}`} title={nextLesson.title}
+                className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:border-green/40 hover:text-green transition-colors">
+                <ChevronRight size={15} />
+              </Link>
+            ) : (
+              <span className="flex h-7 w-7 items-center justify-center rounded border border-border/50 text-muted/30"><ChevronRight size={15} /></span>
+            )}
+          </div>
         </div>
 
         {lessonLoading || !lesson ? (

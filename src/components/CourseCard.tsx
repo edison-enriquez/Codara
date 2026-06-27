@@ -24,12 +24,64 @@ interface Props {
   course: CourseSummary
   completedCount?: number
   index?: number
+  variant?: 'list' | 'grid'
 }
 
-export default function CourseCard({ course, completedCount = 0, index = 0 }: Props) {
+export default function CourseCard({ course, completedCount = 0, index = 0, variant = 'list' }: Props) {
   const total = course.lessonsCount + course.labsCount
   const pct   = total > 0 ? Math.round((completedCount / total) * 100) : 0
 
+  // ── Vista en cuadros ──────────────────────────────────────────────────────
+  if (variant === 'grid') {
+    return (
+      <Link
+        to={`/course/${course.id}`}
+        className="group flex h-full flex-col gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:border-green/40"
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded border border-border bg-elevated text-xl">
+            {course.icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-bold text-text group-hover:text-green transition-colors">{course.title}</p>
+            <p className="text-xs text-muted uppercase tracking-wider">{course.language}</p>
+          </div>
+          <span className={`shrink-0 rounded border px-2 py-0.5 text-[10px] font-medium ${DIFFICULTY_STYLE[course.difficulty]}`}>
+            {DIFFICULTY_LABEL[course.difficulty]}
+          </span>
+        </div>
+
+        <p className="line-clamp-2 flex-1 text-xs leading-relaxed text-muted">{course.description}</p>
+
+        {course.tags?.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {course.tags.slice(0, 4).map((t, i) => (
+              <span key={t} className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${TAG_COLORS[(index + i) % TAG_COLORS.length]}`}>
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 border-t border-border/60 pt-3 text-xs text-muted">
+          <span className="flex items-center gap-1"><BookOpen size={11} />{course.lessonsCount}</span>
+          <span className="flex items-center gap-1"><FlaskConical size={11} />{course.labsCount} labs</span>
+          <span className="flex items-center gap-1"><Clock size={11} />{course.estimatedTime}</span>
+        </div>
+
+        {completedCount > 0 && (
+          <div>
+            <div className="h-px w-full bg-border">
+              <div className="h-full bg-green transition-all" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="text-[10px] text-muted">{pct}% completado</span>
+          </div>
+        )}
+      </Link>
+    )
+  }
+
+  // ── Vista en lista ────────────────────────────────────────────────────────
   return (
     <Link
       to={`/course/${course.id}`}

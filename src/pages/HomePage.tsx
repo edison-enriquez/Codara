@@ -1,8 +1,11 @@
 import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { Search, LayoutGrid, List } from 'lucide-react'
 import CourseCard from '../components/CourseCard'
 import { useCourseIndex } from '../hooks/useCourses'
 import { getProgress } from '../utils/courseLoader'
+
+type CourseView = 'grid' | 'list'
+const VIEW_KEY = 'codara_course_view'
 
 const DIFF_LABELS: Record<string, string> = {
   all: 'Todos', beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado',
@@ -26,7 +29,15 @@ export default function HomePage() {
   const [search, setSearch] = useState('')
   const [diff, setDiff]   = useState<string>('all')
   const [lang, setLang]   = useState<string>('all')
+  const [view, setView]   = useState<CourseView>(() =>
+    (localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid')   // cuadros por defecto
+  )
   const progress = getProgress()
+
+  const changeView = (v: CourseView) => {
+    setView(v)
+    localStorage.setItem(VIEW_KEY, v)
+  }
 
   const langs = ['all', ...Array.from(new Set(courses.map((c) => c.language)))]
 
@@ -118,38 +129,67 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Results count */}
+        {/* Results count + toggle de vista */}
         {!loading && !error && (
-          <p className="mb-2 text-xs text-muted border-b border-border pb-2">
-            {filtered.length === courses.length
-              ? `${courses.length} cursos`
-              : `${filtered.length} de ${courses.length} cursos`
-            }
-          </p>
+          <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
+            <p className="text-xs text-muted">
+              {filtered.length === courses.length
+                ? `${courses.length} cursos`
+                : `${filtered.length} de ${courses.length} cursos`}
+            </p>
+            <div className="flex gap-1">
+              <button
+                onClick={() => changeView('grid')}
+                title="Vista en cuadros"
+                aria-label="Vista en cuadros"
+                className={`flex h-7 w-7 items-center justify-center border transition-colors ${
+                  view === 'grid' ? 'border-green/50 bg-green/10 text-green' : 'border-border text-muted hover:text-green'
+                }`}
+              >
+                <LayoutGrid size={14} />
+              </button>
+              <button
+                onClick={() => changeView('list')}
+                title="Vista en lista"
+                aria-label="Vista en lista"
+                className={`flex h-7 w-7 items-center justify-center border transition-colors ${
+                  view === 'list' ? 'border-green/50 bg-green/10 text-green' : 'border-border text-muted hover:text-green'
+                }`}
+              >
+                <List size={14} />
+              </button>
+            </div>
+          </div>
         )}
 
-        {/* Course list */}
-        <div className="border-t border-border">
-          {loading ? (
-            <>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 animate-pulse border-b border-border bg-surface" />
-              ))}
-            </>
-          ) : error ? (
-            <div className="border-b border-border p-6 text-center text-xs text-red">
-              Error al cargar: {error}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-xs text-muted">
-              — No se encontraron cursos —
-            </div>
-          ) : (
-            filtered.map((c, i) => (
-              <CourseCard key={c.id} course={c} completedCount={getCompletedCount(c.id)} index={i} />
-            ))
-          )}
-        </div>
+        {/* Cursos */}
+        {loading ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-40 animate-pulse rounded-lg border border-border bg-surface" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="border border-border p-6 text-center text-xs text-red">
+            Error al cargar: {error}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-16 text-center text-xs text-muted">
+            — No se encontraron cursos —
+          </div>
+        ) : view === 'grid' ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((c, i) => (
+              <CourseCard key={c.id} course={c} completedCount={getCompletedCount(c.id)} index={i} variant="grid" />
+            ))}
+          </div>
+        ) : (
+          <div className="border-t border-border">
+            {filtered.map((c, i) => (
+              <CourseCard key={c.id} course={c} completedCount={getCompletedCount(c.id)} index={i} variant="list" />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
