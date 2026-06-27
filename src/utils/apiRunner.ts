@@ -134,7 +134,7 @@ ${testCode}
 ${testCode.includes('void run_tests') ? '' : '}'}
 
 int main(void) {
-${hasMain ? '    student_main(); /* ejecutar código del estudiante */' : ''}
+${hasMain ? '    student_main(); /* ejecutar código del estudiante */\n    fflush(stdout); /* volcar su salida al stdout real (logs) antes de capturar/redirigir */' : ''}
     run_tests();
     printf("__SUMMARY__%d__%d__\\n", __t_pass, __t_run);
     return (__t_pass == __t_run) ? 0 : 1;
