@@ -136,6 +136,7 @@ for (const courseId of courseDirs) {
     difficulty: cfg.difficulty, language: cfg.language, category: cfg.category,
     icon: cfg.icon, estimatedTime: cfg.estimatedTime,
   }
+  if (cfg.notebook) meta.notebook = true
 
   if (Array.isArray(cfg.chapters)) {
     meta.chapters = cfg.chapters.map((ch) => ({

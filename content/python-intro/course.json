@@ -8,6 +8,7 @@
   "icon": "🐍",
   "estimatedTime": "2 horas",
   "tags": ["Python", "funciones", "listas", "Pyodide"],
+  "notebook": true,
   "lessons": [
     "01-introduccion.md",
     "02-funciones.md",

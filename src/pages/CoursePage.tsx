@@ -5,6 +5,7 @@ import { useCourseData, useLesson } from '../hooks/useCourses'
 import { isComplete } from '../utils/courseLoader'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import LabView from '../components/LabView'
+import NotebookView from '../components/NotebookView'
 import CourseIndex from '../components/CourseIndex'
 import type { LessonMeta, Chapter } from '../types'
 
@@ -188,17 +189,21 @@ export default function CoursePage() {
           /* Lesson Reader */
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto max-w-3xl px-6 pb-16 pt-8">
-                {/* Lesson header */}
-                <div className="mb-6 border-b border-border pb-6">
-                  <div className="mb-2 flex items-center gap-2 text-xs text-muted uppercase tracking-widest">
-                    <BookOpen size={11} />
-                    <span>Lección {(currentIdx ?? 0) + 1}</span>
+              {course.notebook ? (
+                <NotebookView lesson={lesson} />
+              ) : (
+                <div className="mx-auto max-w-3xl px-6 pb-16 pt-8">
+                  {/* Lesson header */}
+                  <div className="mb-6 border-b border-border pb-6">
+                    <div className="mb-2 flex items-center gap-2 text-xs text-muted uppercase tracking-widest">
+                      <BookOpen size={11} />
+                      <span>Lección {(currentIdx ?? 0) + 1}</span>
+                    </div>
+                    <h1 className="text-xl font-bold text-text">{lesson.meta.title}</h1>
                   </div>
-                  <h1 className="text-xl font-bold text-text">{lesson.meta.title}</h1>
+                  <MarkdownRenderer content={lesson.displayContent} />
                 </div>
-                <MarkdownRenderer content={lesson.displayContent} />
-              </div>
+              )}
             </div>
 
             {/* Prev/Next navigation */}

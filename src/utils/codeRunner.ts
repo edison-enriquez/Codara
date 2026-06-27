@@ -148,6 +148,21 @@ export async function runPython(code: string): Promise<RunResult> {
   }
 }
 
+/** Limpia las variables definidas por el usuario en el kernel de Pyodide (estilo "restart kernel"). */
+export async function resetPythonKernel(): Promise<void> {
+  if (!_pyodidePromise) return
+  try {
+    const py = await getPyodide() as { runPythonAsync: (code: string) => Promise<void> }
+    await py.runPythonAsync(
+      'for _n in list(globals()):\n' +
+      '    if not _n.startswith("__"):\n' +
+      '        del globals()[_n]\n'
+    )
+  } catch {
+    /* ignorar */
+  }
+}
+
 export async function runPythonTests(solutionCode: string, testCode: string): Promise<RunResult> {
   const fullCode = `
 ${solutionCode}
