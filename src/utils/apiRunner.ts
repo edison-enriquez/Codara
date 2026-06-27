@@ -277,28 +277,41 @@ export async function runCIOTests(code: string, ioTests: IOTest[]): Promise<RunR
     return { logs: [], error: `No se pudo conectar a Wandbox: ${(e as Error).message}`, testResults: [] }
   }
 
-  // Lanzar todos los test cases en paralelo
-  const results = await Promise.all(
-    ioTests.map(async (test): Promise<TestResult> => {
+  // Lanzar todos los test cases en paralelo (guardando también la salida cruda
+  // para mostrarla en la consola).
+  const runs = await Promise.all(
+    ioTests.map(async (test): Promise<{ result: TestResult; rawOut: string }> => {
       try {
         const data = await compileAndRun(source, test.input)
-        const actual   = normalizeOutput(data.program_output ?? '')
+        const rawOut   = data.program_output ?? ''
+        const actual   = normalizeOutput(rawOut)
         const expected = normalizeOutput(test.expected)
         const passed   = actual === expected
-        return { name: test.name, passed, input: test.input, expected, actual }
+        return { result: { name: test.name, passed, input: test.input, expected, actual }, rawOut }
       } catch (e) {
         return {
-          name: test.name,
-          passed: false,
-          input: test.input,
-          expected: normalizeOutput(test.expected),
-          actual: '',
-          error: (e as Error).message,
+          result: {
+            name: test.name,
+            passed: false,
+            input: test.input,
+            expected: normalizeOutput(test.expected),
+            actual: '',
+            error: (e as Error).message,
+          },
+          rawOut: '',
         }
       }
     })
   )
 
+  const results = runs.map((r) => r.result)
+
+  // Consola: salida del primer caso con salida (representativa de "qué imprime").
+  const firstWithOutput = runs.find((r) => r.rawOut.trim() !== '')
+  const outputLogs = firstWithOutput
+    ? firstWithOutput.rawOut.split('\n').filter((l) => l.trim() !== '')
+    : []
+
   const warn = compileError ? [`⚠ ${compileError}`] : []
-  return { logs: warn, error: null, testResults: results }
+  return { logs: [...warn, ...outputLogs], error: null, testResults: results }
 }
