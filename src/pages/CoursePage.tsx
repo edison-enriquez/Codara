@@ -1,25 +1,18 @@
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ChevronDown, BookOpen, FlaskConical, CheckCircle2, Circle, Menu } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useCourseData, useLesson } from '../hooks/useCourses'
 import { isComplete } from '../utils/courseLoader'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import LabView from '../components/LabView'
+import CourseIndex from '../components/CourseIndex'
 import type { LessonMeta, Chapter } from '../types'
 
 export default function CoursePage() {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId?: string }>()
-  const navigate = useNavigate()
   const { course, loading: courseLoading } = useCourseData(courseId)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-
-  // Redirect to first lesson if no lessonId
-  useEffect(() => {
-    if (!lessonId && course?.lessons?.length) {
-      navigate(`/course/${courseId}/${course.lessons[0].id}`, { replace: true })
-    }
-  }, [lessonId, course, courseId, navigate])
 
   const currentLessonMeta = course?.lessons.find((l) => l.id === lessonId)
   const { lesson, loading: lessonLoading } = useLesson(courseId, currentLessonMeta?.file)
@@ -34,6 +27,9 @@ export default function CoursePage() {
       </div>
     )
   }
+
+  // Sin lección seleccionada → índice del curso (tabla de retos)
+  if (!lessonId) return <CourseIndex course={course} courseId={courseId!} />
 
   const currentIdx = course.lessons.findIndex((l) => l.id === lessonId)
   const prevLesson = currentIdx > 0 ? course.lessons[currentIdx - 1] : null

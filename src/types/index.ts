@@ -22,6 +22,7 @@ export interface LessonMeta {
   type: LessonType
   order: number
   file: string
+  difficulty?: Difficulty
 }
 
 export interface Chapter {
