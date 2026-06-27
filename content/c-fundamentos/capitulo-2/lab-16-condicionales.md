@@ -2,6 +2,7 @@
 id: lab-16-condicionales
 title: "Lab 2.3 — Condicionales con if"
 type: lab
+tags: ["control"]
 language: c
 hints:
   - "La sintaxis es: if (condición) { instrucciones; }"

@@ -2,6 +2,7 @@
 id: lab-19-bucle-while
 title: "Lab 3.3 — Bucle while"
 type: lab
+tags: ["bucles"]
 language: c
 hints:
   - "La estructura es: while (condición) { instrucciones; }"

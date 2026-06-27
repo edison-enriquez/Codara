@@ -4,6 +4,7 @@ title: "Lab 1.2.9 — Solo números: Parte 2"
 type: lab
 language: c
 difficulty: easy
+tags: ["números"]
 order: 6
 hints:
   - "El segundo argumento de printf es inválido: '16,0-10-' tiene errores de sintaxis."

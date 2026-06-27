@@ -4,6 +4,7 @@ title: "Lab 1.2.16 — Variables: Parte 4 (Días del año)"
 type: lab
 language: c
 difficulty: easy
+tags: ["variables"]
 order: 13
 hints:
   - "El año 2026 NO es bisiesto. Febrero tiene 28 días."

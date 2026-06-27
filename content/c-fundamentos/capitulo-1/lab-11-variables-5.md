@@ -4,6 +4,7 @@ title: "Lab 1.2.17 — Variables: Parte 5 (Trimestres)"
 type: lab
 language: c
 difficulty: easy
+tags: ["variables"]
 order: 14
 hints:
   - "Q1 = enero(31) + febrero(28) + marzo(31) = 90 días."

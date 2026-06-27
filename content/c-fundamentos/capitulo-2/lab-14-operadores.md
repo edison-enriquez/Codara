@@ -2,6 +2,7 @@
 id: lab-14-operadores
 title: "Lab 2.1 — Operadores aritméticos"
 type: lab
+tags: ["operadores"]
 language: c
 hints:
   - "El operador % (módulo) da el resto de la división: 10 % 3 = 1"

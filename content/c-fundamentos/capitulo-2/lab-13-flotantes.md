@@ -2,6 +2,7 @@
 id: lab-13-flotantes
 title: "Lab 2.0 — Números de punto flotante"
 type: lab
+tags: ["números", "flotantes"]
 language: c
 hints:
   - "Declara variables con: float nombre; o double nombre;"

@@ -4,6 +4,7 @@ title: "Lab 1.2.14 — Variables: Parte 2"
 type: lab
 language: c
 difficulty: easy
+tags: ["variables"]
 order: 11
 hints:
   - "Los nombres de variables no pueden comenzar con un número: '60seconds' es inválido."

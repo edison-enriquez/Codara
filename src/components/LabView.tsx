@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Play, RotateCcw, CheckCircle2, Server, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import CodeEditor from './CodeEditor'
@@ -9,6 +9,7 @@ import AgentPanel from './AgentPanel'
 import { useCodeRunner } from '../hooks/useCodeRunner'
 import { useAgent } from '../context/AgentContext'
 import { markComplete } from '../utils/courseLoader'
+import { reportPassed } from '../utils/passedCounts'
 import type { ParsedLesson, LessonMeta } from '../types'
 
 interface Props {
@@ -41,6 +42,11 @@ export default function LabView({ lesson, courseId, prevLesson, nextLesson }: Pr
     !!result?.testResults?.length && result.testResults.every((t) => t.passed)
 
   if (allPassed) markComplete(courseId, meta.id)
+
+  // Reportar la resolución al backend (contador "passed") una sola vez por reto.
+  useEffect(() => {
+    if (allPassed) reportPassed(courseId, meta.id)
+  }, [allPassed, courseId, meta.id])
 
   const checks = meta.checks ?? []
   const isCLang = lang === 'c'

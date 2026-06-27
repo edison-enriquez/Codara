@@ -2,6 +2,7 @@
 id: lab-20-bucle-for
 title: "Lab 3.3 — Bucle for y tabla de multiplicar"
 type: lab
+tags: ["bucles"]
 language: c
 hints:
   - "Estructura: for (init; condición; actualización) { cuerpo; }"

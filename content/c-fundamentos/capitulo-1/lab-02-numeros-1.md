@@ -4,6 +4,7 @@ title: "Lab 1.1.3 — Solo números: Parte 1"
 type: lab
 language: c
 difficulty: easy
+tags: ["números"]
 order: 5
 hints:
   - "Busca el error en el argumento de printf: '5int' no es un número válido en C."

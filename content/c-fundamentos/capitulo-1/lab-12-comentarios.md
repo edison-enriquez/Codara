@@ -4,6 +4,7 @@ title: "Lab 1.2.18 — Comentarios: ¿son siempre útiles?"
 type: lab
 language: c
 difficulty: easy
+tags: ["comentarios"]
 order: 15
 hints:
   - "Los comentarios no siempre son la mejor manera de documentar el código."

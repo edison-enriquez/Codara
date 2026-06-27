@@ -2,6 +2,7 @@
 id: lab-17-printf-formato
 title: "Lab 2.4 — Formatear salida con printf"
 type: lab
+tags: ["io"]
 language: c
 hints:
   - "Para anchura fija: printf(\"%10d\", n); — 10 caracteres, alineado derecha"

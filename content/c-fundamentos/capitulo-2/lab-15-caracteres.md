@@ -2,6 +2,7 @@
 id: lab-15-caracteres
 title: "Lab 2.2 — El tipo char y ASCII"
 type: lab
+tags: ["char", "tipos"]
 language: c
 hints:
   - "Declara un char así: char letra = 'A';"

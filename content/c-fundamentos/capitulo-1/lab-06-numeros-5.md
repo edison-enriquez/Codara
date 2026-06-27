@@ -4,6 +4,7 @@ title: "Lab 1.2.12 — Solo números: Parte 5 (Hexadecimal)"
 type: lab
 language: c
 difficulty: easy
+tags: ["números"]
 order: 9
 hints:
   - "Los hexadecimales en C usan el prefijo 0x seguido de dígitos 0-9 y letras A-F."
