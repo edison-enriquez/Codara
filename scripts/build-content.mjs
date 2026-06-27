@@ -29,25 +29,44 @@ const VALID_TYPES = new Set(['lesson', 'lab'])
 const errors = []
 function fail(msg) { errors.push(msg) }
 
-/** Extrae las claves escalares de nivel superior del frontmatter YAML (id, title, type, …). */
+function unquote(v) {
+  v = v.trim()
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) return v.slice(1, -1)
+  return v
+}
+
+/** Extrae claves de nivel superior del frontmatter YAML: escalares y listas (inline o en bloque). */
 function readFrontmatter(raw, file) {
   if (!raw.startsWith('---')) { fail(`${file}: falta el frontmatter (--- al inicio)`); return {} }
   const end = raw.indexOf('\n---', 3)
   if (end === -1) { fail(`${file}: frontmatter sin cierre (---)`); return {} }
-  const yaml = raw.slice(4, end)
+  const lines = raw.slice(4, end).split('\n')
   const meta = {}
-  for (const line of yaml.split('\n')) {
-    if (!line.trim() || line.startsWith(' ') || line.startsWith('\t') || line.trim().startsWith('#')) continue
-    if (line.trimStart().startsWith('-')) continue
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line.trim() || /^\s/.test(line) || line.trim().startsWith('#') || line.trimStart().startsWith('-')) continue
     const colon = line.indexOf(':')
     if (colon === -1) continue
     const key = line.slice(0, colon).trim()
-    let val = line.slice(colon + 1).trim()
-    if (!val) continue // clave con lista/objeto anidado: no nos interesa aquí
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1)
+    const val = line.slice(colon + 1).trim()
+
+    if (!val) {
+      // Lista en bloque: líneas siguientes "  - item"
+      const items = []
+      let j = i + 1
+      while (j < lines.length && /^\s+-\s+/.test(lines[j])) {
+        items.push(unquote(lines[j].replace(/^\s+-\s+/, '')))
+        j++
+      }
+      if (items.length) { meta[key] = items; i = j - 1 }
+      continue
     }
-    meta[key] = val
+    if (val.startsWith('[') && val.endsWith(']')) {
+      // Lista inline: [a, b, c]
+      meta[key] = val.slice(1, -1).split(',').map(unquote).filter((s) => s !== '')
+      continue
+    }
+    meta[key] = unquote(val)
   }
   return meta
 }
@@ -61,7 +80,8 @@ function loadLesson(courseDir, relPath) {
   if (!fm.title) fail(`${relPath}: frontmatter sin "title"`)
   if (!fm.type) fail(`${relPath}: frontmatter sin "type"`)
   else if (!VALID_TYPES.has(fm.type)) fail(`${relPath}: type "${fm.type}" inválido (usa lesson | lab)`)
-  return { id: fm.id, title: fm.title, type: fm.type, difficulty: fm.difficulty, file: relPath, _abs: abs }
+  const tags = Array.isArray(fm.tags) ? fm.tags : undefined
+  return { id: fm.id, title: fm.title, type: fm.type, difficulty: fm.difficulty, tags, file: relPath, _abs: abs }
 }
 
 function copyInto(srcAbs, destAbs) {
@@ -106,6 +126,7 @@ for (const courseId of courseDirs) {
     copyInto(lesson._abs, join(OUT, courseId, relPath))
     const out = { id: lesson.id, title: lesson.title, type: lesson.type, order, file: lesson.file }
     if (lesson.difficulty) out.difficulty = lesson.difficulty
+    if (lesson.tags?.length) out.tags = lesson.tags
     allLessons.push(out)
     return out
   }

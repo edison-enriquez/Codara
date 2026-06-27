@@ -4,6 +4,7 @@ title: "Lab 1.2.13 — Variables: Parte 1"
 type: lab
 language: c
 difficulty: easy
+tags: ["variables"]
 order: 10
 hints:
   - "Error 1: 'simpleVari able' tiene un espacio en el medio. Los nombres no pueden tener espacios."

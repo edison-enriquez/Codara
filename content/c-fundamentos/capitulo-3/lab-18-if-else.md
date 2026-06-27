@@ -2,6 +2,7 @@
 id: lab-18-if-else
 title: "Lab 3.0 — Sentencia if-else"
 type: lab
+tags: ["control"]
 language: c
 hints:
   - "Estructura: if (cond) { } else if (cond) { } else { }"

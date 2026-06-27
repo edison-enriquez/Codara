@@ -4,6 +4,7 @@ title: "Lab: Funciones matemáticas"
 type: lab
 language: python
 difficulty: beginner
+tags: ["funciones"]
 order: 3
 hints:
   - "Para `es_primo(n)`, un número es primo si solo es divisible por 1 y por sí mismo. Verifica que n > 1 y que ningún número del 2 al √n (int(n**0.5)+1) lo divida."

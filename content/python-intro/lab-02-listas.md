@@ -4,6 +4,7 @@ title: "Lab: Manipulación de listas"
 type: lab
 language: python
 difficulty: beginner
+tags: ["colecciones"]
 order: 4
 hints:
   - "Para `aplanar(lista)`, necesitas recorrer cada elemento y si es una lista, agregar sus elementos individualmente. Usa `isinstance(item, list)` para verificar si un elemento es lista."

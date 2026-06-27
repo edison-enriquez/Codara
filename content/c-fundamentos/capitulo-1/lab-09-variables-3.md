@@ -4,6 +4,7 @@ title: "Lab 1.2.15 — Variables: Parte 3 (IP)"
 type: lab
 language: c
 difficulty: easy
+tags: ["variables"]
 order: 12
 hints:
   - "La IP 127.0.0.1 tiene 4 partes: 127, 0, 0 y 1."

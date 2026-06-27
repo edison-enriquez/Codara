@@ -4,6 +4,7 @@ title: "Lab 1.2.11 — Solo números: Parte 4 (Octal)"
 type: lab
 language: c
 difficulty: easy
+tags: ["números"]
 order: 8
 hints:
   - "Línea 1: '01x' no es un número válido. Debes usar números octales (base 8) para representar el 9."

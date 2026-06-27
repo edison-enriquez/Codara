@@ -4,6 +4,7 @@ title: "Funciones"
 type: lesson
 language: javascript
 difficulty: beginner
+tags: ["funciones"]
 order: 3
 ---
 

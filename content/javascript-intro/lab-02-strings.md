@@ -4,6 +4,7 @@ title: "Lab: Manipulación de strings"
 type: lab
 language: javascript
 difficulty: beginner
+tags: ["strings"]
 order: 5
 hints:
   - "Para invertir un string, puedes convertirlo a array con `.split('')`, invertirlo con `.reverse()` y unirlo con `.join('')`."

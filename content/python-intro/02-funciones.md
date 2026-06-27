@@ -4,6 +4,7 @@ title: "Funciones y estructuras de datos"
 type: lesson
 language: python
 difficulty: beginner
+tags: ["funciones", "struct"]
 order: 2
 ---
 

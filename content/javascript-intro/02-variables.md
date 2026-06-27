@@ -4,6 +4,7 @@ title: "Variables y tipos de datos"
 type: lesson
 language: javascript
 difficulty: beginner
+tags: ["variables", "tipos"]
 order: 2
 ---
 

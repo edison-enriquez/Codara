@@ -27,6 +27,22 @@ const TIMEOUT_MS  = 8000  // 8 seg. max ejecución
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 const SERVER_URL   = process.env.SERVER_URL   || `http://localhost:${PORT}`
 
+// ─── Contador "passed" (resoluciones por reto) ────────────────────────────────
+// Persistencia simple en JSON. Estructura: { [courseId]: { [lessonId]: n } }
+const COUNTS_FILE = process.env.COUNTS_FILE || path.join(os.tmpdir(), 'codara-counts.json')
+let counts = {}
+let countsSaveTimer = null
+;(async () => {
+  try { counts = JSON.parse(await fs.readFile(COUNTS_FILE, 'utf8')) }
+  catch { counts = {} }
+})()
+function saveCounts() {
+  clearTimeout(countsSaveTimer)
+  countsSaveTimer = setTimeout(() => {
+    fs.writeFile(COUNTS_FILE, JSON.stringify(counts)).catch(() => {})
+  }, 1000)
+}
+
 // ─── JWT Helpers (HMAC-SHA256, sin dependencias) ──────────────────────────────
 
 function signJWT(payload, secret) {
@@ -501,6 +517,35 @@ const server = http.createServer(async (req, res) => {
   if (parsedUrl.pathname.startsWith('/auth/')) {
     await handleAuthRoutes(req, res, parsedUrl)
     return
+  }
+
+  // ── Contador "passed" ────────────────────────────────────────────────────
+  if (parsedUrl.pathname === '/api/counts') {
+    if (req.method === 'GET') {
+      const course = parsedUrl.searchParams.get('course') ?? ''
+      res.writeHead(200, headers)
+      res.end(JSON.stringify(counts[course] ?? {}))
+      return
+    }
+    if (req.method === 'POST') {
+      try {
+        const { course, lesson } = await readBody(req)
+        if (typeof course !== 'string' || typeof lesson !== 'string' || !course || !lesson) {
+          res.writeHead(400, headers)
+          res.end(JSON.stringify({ error: 'course y lesson son requeridos' }))
+          return
+        }
+        counts[course] = counts[course] ?? {}
+        counts[course][lesson] = (counts[course][lesson] ?? 0) + 1
+        saveCounts()
+        res.writeHead(200, headers)
+        res.end(JSON.stringify({ count: counts[course][lesson] }))
+      } catch (err) {
+        res.writeHead(500, headers)
+        res.end(JSON.stringify({ error: err.message }))
+      }
+      return
+    }
   }
 
   if (req.method === 'GET' && req.url === '/api/health') {

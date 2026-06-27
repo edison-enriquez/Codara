@@ -4,6 +4,7 @@ title: "Lab 1.2.10 — Solo números: Parte 3"
 type: lab
 language: c
 difficulty: easy
+tags: ["números"]
 order: 7
 hints:
   - "Error 1: '0087' no es un número octal válido. Los octales solo usan dígitos del 0 al 7."

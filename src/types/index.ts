@@ -23,6 +23,7 @@ export interface LessonMeta {
   order: number
   file: string
   difficulty?: Difficulty
+  tags?: string[]
 }
 
 export interface Chapter {

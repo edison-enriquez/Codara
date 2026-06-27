@@ -2,6 +2,7 @@
 id: lab-21-logica
 title: "Lab 3.4 — Operadores lógicos"
 type: lab
+tags: ["operadores", "lógica"]
 language: c
 hints:
   - "AND (&&): ambas condiciones deben ser verdaderas"
