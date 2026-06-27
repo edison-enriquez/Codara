@@ -117,16 +117,33 @@ let _pyodidePromise: Promise<unknown> | null = null
 async function getPyodide(): Promise<unknown> {
   if (_pyodidePromise) return _pyodidePromise
   _pyodidePromise = (async () => {
-    if (!(window as { loadPyodide?: unknown }).loadPyodide) {
-      await new Promise<void>((res, rej) => {
-        const s = document.createElement('script')
-        s.src = 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js'
-        s.onload = () => res()
-        s.onerror = () => rej(new Error('No se pudo cargar Pyodide'))
-        document.head.appendChild(s)
-      })
+    const w = window as unknown as {
+      loadPyodide?: () => Promise<unknown>
+      define?: unknown
     }
-    return (window as unknown as { loadPyodide: () => Promise<unknown> }).loadPyodide()
+    // Monaco instala un loader AMD global (window.define). Pyodide es UMD y, si
+    // detecta define.amd, se registra como módulo AMD y deja que el loader de
+    // Monaco intente cargar sus dependencias (error-stack-parser/stackframe)
+    // desde el CDN → "G.default.parse is not a function". Neutralizamos define
+    // mientras Pyodide carga e inicializa para que use el global del navegador.
+    // (Solo define: la rama CommonJS del UMD depende de `module`, no de `require`,
+    // así que no tocamos require para no interferir con Monaco.)
+    const savedDefine = w.define
+    w.define = undefined
+    try {
+      if (!w.loadPyodide) {
+        await new Promise<void>((res, rej) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js'
+          s.onload = () => res()
+          s.onerror = () => rej(new Error('No se pudo cargar Pyodide'))
+          document.head.appendChild(s)
+        })
+      }
+      return await w.loadPyodide!()
+    } finally {
+      w.define = savedDefine
+    }
   })()
   return _pyodidePromise
 }
