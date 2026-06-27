@@ -85,6 +85,41 @@ export function isModelLoaded(model: string): boolean {
   return loadedModel === model && enginePromise !== null
 }
 
+function resetEngine() {
+  enginePromise = null
+  loadedModel = ''
+}
+
+/** Traduce errores de WebGPU/web-llm a un mensaje accionable en español. */
+function toFriendlyError(err: any): Error {
+  const msg = String(err?.message ?? err)
+  if (/DEVICE_REMOVED|requestDevice|command queue|D3D12|DXGI|device lost/i.test(msg)) {
+    return new Error(
+      'No se pudo inicializar la GPU (el dispositivo WebGPU se perdió: DEVICE_REMOVED). ' +
+      'Suele ser un problema de drivers: actualiza los drivers de tu GPU y reinicia el navegador. ' +
+      'Si persiste, prueba el modelo Llama 3.2 1B o cambia a Groq (nube) en ajustes.'
+    )
+  }
+  if (/out of memory|OOM|allocation failed|exceeds the limit/i.test(msg)) {
+    return new Error(
+      'Tu GPU se quedó sin memoria para este modelo. Prueba uno más pequeño (Llama 3.2 1B) en ajustes, ' +
+      'o cambia a Groq (nube).'
+    )
+  }
+  if (/ShaderModule|compute stage|createComputePipeline|f16/i.test(msg)) {
+    return new Error(
+      'Tu GPU no pudo compilar el modelo (driver/hardware limitado). ' +
+      'Actualiza los drivers de tu GPU, prueba Llama 3.2 1B, o cambia a Groq (nube).'
+    )
+  }
+  return err instanceof Error ? err : new Error(msg)
+}
+
+/** Indica si el error corresponde a un fallo de inicialización de GPU transitorio. */
+function isTransientDeviceError(err: any): boolean {
+  return /DEVICE_REMOVED|requestDevice|command queue|D3D12|DXGI|device lost/i.test(String(err?.message ?? err))
+}
+
 /**
  * Genera una respuesta con el modelo local, con la misma firma que streamGroq.
  * En la primera llamada descarga e inicializa el modelo (onProgress informa el avance).
@@ -100,9 +135,27 @@ export async function streamWebLLM(
     throw new Error('Tu navegador no soporta WebGPU. Usa Chrome/Edge recientes o cambia a Groq (nube) en ajustes.')
   }
 
+  // 1) Inicializar el engine. DEVICE_REMOVED suele ser transitorio → reintento único.
+  let engine: MLCEngine
   try {
-    const engine = await getEngine(model, onProgress)
+    engine = await getEngine(model, onProgress)
+  } catch (err: any) {
+    if (err?.name === 'AbortError') throw err
+    resetEngine()
+    if (isTransientDeviceError(err)) {
+      try {
+        engine = await getEngine(model, onProgress)
+      } catch (err2: any) {
+        resetEngine()
+        throw toFriendlyError(err2)
+      }
+    } else {
+      throw toFriendlyError(err)
+    }
+  }
 
+  // 2) Generar (streaming).
+  try {
     const chunks = await engine.chat.completions.create({
       messages,
       stream: true,
@@ -120,16 +173,7 @@ export async function streamWebLLM(
     }
   } catch (err: any) {
     if (err?.name === 'AbortError') throw err
-    const msg = String(err?.message ?? err)
-    // El modelo/engine falló: invalidar el singleton para permitir reintentar.
-    enginePromise = null
-    loadedModel = ''
-    if (/ShaderModule|compute stage|createComputePipeline|f16|device lost|out of memory|OOM/i.test(msg)) {
-      throw new Error(
-        'Tu GPU no pudo ejecutar este modelo (driver/hardware limitado). ' +
-        'Prueba un modelo más pequeño (Llama 3.2 1B) en ajustes, actualiza los drivers de tu GPU, o cambia a Groq (nube).'
-      )
-    }
-    throw err
+    resetEngine()
+    throw toFriendlyError(err)
   }
 }
