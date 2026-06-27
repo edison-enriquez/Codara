@@ -43,6 +43,7 @@ export interface CourseData {
   estimatedTime: string
   lessons: LessonMeta[]   // flat list (built from chapters by courseLoader)
   chapters?: Chapter[]    // optional grouped structure for menu
+  notebook?: boolean      // si true, las lecciones se renderizan como notebook
 }
 
 export interface CodeCheck {
