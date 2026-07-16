@@ -16,6 +16,10 @@ export interface UseSpeechRecognitionResult {
   start: () => void
   stop: () => void
   reset: () => void
+  /** ¿La escucha terminó naturalmente (onend ya disparado)? */
+  ended: boolean
+  /** Reinicia el flag `ended` sin tocar transcript. */
+  clearEnded: () => void
   supported: boolean
   error: string | null
 }
@@ -28,6 +32,7 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
   const [transcript, setTranscript] = useState('')
   const [interim, setInterim] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [ended, setEnded] = useState(false)
   const recRef = useRef<any>(null)
 
   const start = useCallback(() => {
@@ -35,21 +40,20 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
     setError(null)
     setTranscript('')
     setInterim('')
+    setEnded(false)
     const rec = new Ctor()
     rec.lang = lang
-    rec.continuous = false
+    rec.continuous = true // ← mantener escucha hasta que el usuario pare
     rec.interimResults = true
     rec.maxAlternatives = 1
     rec.onstart = () => setIsListening(true)
     rec.onend = () => {
       setIsListening(false)
       setInterim('')
+      setEnded(true) // ← marcador para que el consumer sepa que terminó
     }
     rec.onerror = (e: any) => {
-      if (e.error === 'no-speech') {
-        // silencio: dejar que onend cierre
-        return
-      }
+      if (e.error === 'no-speech') return
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         setError('Permiso de micrófono denegado.')
       } else {
@@ -80,16 +84,23 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
     const rec = recRef.current
     if (rec) {
       try {
-        rec.stop()
+        rec.stop() // ← deja que onend dispare setIsListening(false)
       } catch {}
     }
-    setIsListening(false)
+    // NO forzar isListening=false aquí: onend lo hará, evitando la carrera
+  }, [])
+
+  const clearEnded = useCallback(() => {
+    setEnded(false)
+    setTranscript('')
+    setInterim('')
   }, [])
 
   const reset = useCallback(() => {
     setTranscript('')
     setInterim('')
     setError(null)
+    setEnded(false)
   }, [])
 
   useEffect(() => {
@@ -103,5 +114,5 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
     }
   }, [])
 
-  return { isListening, transcript, interim, start, stop, reset, supported: supportedBool, error }
+  return { isListening, transcript, interim, start, stop, reset, ended, clearEnded, supported: supportedBool, error }
 }

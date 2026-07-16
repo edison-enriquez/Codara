@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
-  Mic, MicOff, Volume2, Loader2, X, CheckCircle2, XCircle, RefreshCw, Headphones, BookOpen, MessageSquare,
+  Mic, MicOff, Volume2, Loader2, X, Headphones, BookOpen, MessageSquare,
 } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
 import { useVoiceTutor, resolveVoice } from '../context/VoiceTutorContext'
@@ -12,14 +12,28 @@ import ReadingMode from './ReadingMode'
 
 type PanelTab = 'tutor' | 'reader'
 
-type Mode = 'idle' | 'thinking-q' | 'speaking-q' | 'listening' | 'thinking-eval' | 'speaking-eval' | 'finished'
+type Mode =
+  | 'idle'
+  | 'thinking'          // LLM pensando (generar pregunta o responder)
+  | 'speaking'          // TTS hablando (pregunta o respuesta del tutor)
+  | 'listening'         // escuchando la respuesta del estudiante
+  | 'finished'          // ronda terminada, listo para otra
 
-interface EvalResult {
-  correct: boolean
-  feedback: string
+interface ChatTurn {
+  role: 'tutor' | 'student'
+  text: string
 }
 
-const SYSTEM = 'Eres un tutor de programación que da clases por voz en español. Formulas preguntas de comprensión basadas en el contenido de la lección y evalúas las respuestas verbales del estudiante. Sé claro, breve y alentador. Usa lenguaje sencillo.'
+const SYSTEM = `Eres un tutor de programación que da clases por voz en español.
+Conduces una conversación oral con el estudiante basándote en el contenido de la lección.
+
+Reglas:
+- Cuando formules una pregunta, hazla abierta y de respuesta corta.
+- Cuando el estudiante responda, evalúa su comprensión y responde de forma natural.
+- Si la respuesta es correcta, felicita brevemente y haz una pregunta de seguimiento sobre otro punto de la lección o más profundo.
+- Si la respuesta es incorrecta o incompleta, corrige con tono amable en una o dos frases y reformula la pregunta o haz una más sencilla.
+- Sé breve, claro y alentador. Usa lenguaje sencillo.
+- Responde SIEMPRE en español, en texto plano (sin JSON, sin markdown, sin numeración).`
 
 function speak(text: string, voiceName: string, onEnd?: () => void): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -38,18 +52,6 @@ function speak(text: string, voiceName: string, onEnd?: () => void): void {
   window.speechSynthesis.speak(u)
 }
 
-function parseEval(raw: string): EvalResult | null {
-  const m = raw.match(/\{[\s\S]*\}/)
-  if (!m) return null
-  try {
-    const o = JSON.parse(m[0])
-    if (typeof o.correct === 'boolean' && typeof o.feedback === 'string') {
-      return { correct: o.correct, feedback: o.feedback }
-    }
-  } catch {}
-  return null
-}
-
 /** Botón flotante + panel lateral deslizable. Se renderiza globalmente. */
 export default function VoiceTutor() {
   const { config, isConfigured, openSettings } = useAgent()
@@ -58,11 +60,8 @@ export default function VoiceTutor() {
 
   const [mode, setMode] = useState<Mode>('idle')
   const [tab, setTab] = useState<PanelTab>('tutor')
-  const [question, setQuestion] = useState('')
-  const [lastAnswer, setLastAnswer] = useState('')
-  const [evalResult, setEvalResult] = useState<EvalResult | null>(null)
+  const [chat, setChat] = useState<ChatTurn[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [round, setRound] = useState(0)
   const [modelLoad, setModelLoad] = useState<LoadProgress | null>(null)
 
   const abortRef = useRef<AbortController | null>(null)
@@ -70,6 +69,9 @@ export default function VoiceTutor() {
   const lessonCtxRef = useRef<string>('')
   const configRef = useRef(config)
   configRef.current = config
+  const chatRef = useRef<ChatTurn[]>([])
+  const voiceNameRef = useRef(voiceName)
+  voiceNameRef.current = voiceName
 
   const sttSupported = sr.supported
 
@@ -88,6 +90,7 @@ export default function VoiceTutor() {
     if (ttsSupported) window.speechSynthesis.cancel()
     sr.stop()
     setMode('idle')
+    setModelLoad(null)
   }, [sr, ttsSupported])
 
   // Al cerrar el panel: detener todo en marcha.
@@ -100,96 +103,123 @@ export default function VoiceTutor() {
     if (tab !== 'tutor') stopAll()
   }, [tab, stopAll])
 
-  // ── Generar pregunta ──────────────────────────────────────────────────────
-  const askQuestion = useCallback(async () => {
+  // Construye los mensajes del LLM a partir del historial del chat.
+  function buildLLMMessages(userText?: string): Message[] {
+    const msgs: Message[] = [{ role: 'system', content: SYSTEM }]
+    const ctx = `\n\n--- CONTENIDO DE LA LECCIÓN ---\n"""${lessonCtxRef.current}"""\n`
+    msgs[0].content += ctx
+    for (const turn of chatRef.current) {
+      msgs.push({
+        role: turn.role === 'tutor' ? 'assistant' : 'user',
+        content: turn.text,
+      })
+    }
+    if (userText) msgs.push({ role: 'user', content: userText })
+    return msgs
+  }
+
+  // ── Iniciar conversación: generar primera pregunta ────────────────────────
+  const startTutoring = useCallback(async () => {
     if (!isConfigured) return
     stoppingRef.current = false
-    setEvalResult(null)
-    setLastAnswer('')
+    setChat([])
+    chatRef.current = []
     setError(null)
     setModelLoad(null)
-    sr.reset()
-    setMode('thinking-q')
+    setMode('thinking')
 
-    const messages: Message[] = [
-      { role: 'system', content: SYSTEM },
-      {
-        role: 'user',
-        content: `Basándote en el siguiente contenido de la lección, formula UNA pregunta para evaluar si el estudiante lo comprendió. La pregunta debe ser abierta, de respuesta corta (no verdadero/falso, ni opción múltiple). Contesta SOLO con la pregunta en español, sin numeración, sin comillas ni texto adicional.\n\nContenido de la lección:\n"""${lessonCtxRef.current}"""`,
-      },
-    ]
+    const messages = buildLLMMessages(
+      'Inicia la tutoría. Formula UNA pregunta abierta para evaluar mi comprensión de la lección. Responde SOLO con la pregunta, nada más.'
+    )
 
     abortRef.current?.abort()
     abortRef.current = new AbortController()
     try {
-      const q = (await completeLLM(configRef.current, messages, abortRef.current.signal, (p) => setModelLoad(p.progress >= 1 ? null : p))).trim().replace(/^["“'"']+|["”'"']+$/g, '')
+      const text = (await completeLLM(
+        configRef.current, messages, abortRef.current.signal,
+        (p) => setModelLoad(p.progress >= 1 ? null : p)
+      )).trim().replace(/^["“'"']+|["”'"']+$/g, '')
+
       if (stoppingRef.current) return
-      setQuestion(q)
-      setRound((r) => r + 1)
-      setMode('speaking-q')
-      speak(q, voiceName, () => {
+      chatRef.current = [...chatRef.current, { role: 'tutor', text }]
+      setChat([...chatRef.current])
+      setMode('speaking')
+      speak(text, voiceNameRef.current, () => {
         if (!stoppingRef.current) {
           setMode('listening')
-          setTimeout(() => sr.start(), 60)
+          sr.clearEnded()
+          sr.reset()
+          setTimeout(() => sr.start(), 80)
         }
       })
     } catch (e: any) {
       if (e.name !== 'AbortError') {
-        setError(e.message ?? 'Error al generar la pregunta')
+        setError(e.message ?? 'Error al iniciar la tutoría')
         setMode('idle')
       }
     }
   }, [isConfigured, sr, voiceName])
 
-  // ── Cuando termina de escuchar → evaluar respuesta ────────────────────────
+  // ── Cuando el STT termina → enviar la respuesta del estudiante al LLM ────
   useEffect(() => {
     if (mode !== 'listening') return
-    if (sr.isListening) return
+    if (sr.isListening) return // aún escuchando
+    if (!sr.ended) return // onend aún no ha disparado
+
     const ans = sr.transcript.trim()
-    if (!ans) return
-    setLastAnswer(ans)
-    setMode('thinking-eval')
+
+    if (!ans) {
+      // No capturó nada: permitir al usuario reintentar en vez de colgarse
+      setError('No te escuché. Pulsa el botón para responder de nuevo.')
+      setMode('finished')
+      return
+    }
+
+    // Guardar la respuesta del estudiante en el historial
+    chatRef.current = [...chatRef.current, { role: 'student', text: ans }]
+    setChat([...chatRef.current])
+    setMode('thinking')
+    setError(null)
 
     ;(async () => {
-      const messages: Message[] = [
-        { role: 'system', content: SYSTEM },
-        {
-          role: 'user',
-          content: `Evalúa la respuesta del estudiante según el contenido de la lección.\n\nContenido de la lección:\n"""${lessonCtxRef.current}"""\n\nPregunta formulada: ${question}\n\nRespuesta del estudiante (transcrita de voz, puede tener errores de transcripción): ${ans}\n\nDevuelve SOLO un JSON válido, sin markdown:\n{\n  "correct": true|false,\n  "feedback": "frase breve en español: primero felicita si acertó o corrige con tono amable si no, después aclara el punto clave en una o dos frases."\n}`,
-        },
-      ]
+      const messages = buildLLMMessages(
+        'Esta es mi respuesta (transcrita de voz, puede tener errores): ' + ans
+      )
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       setModelLoad(null)
       try {
-        const raw = await completeLLM(configRef.current, messages, abortRef.current.signal, (p) => setModelLoad(p.progress >= 1 ? null : p))
+        const text = (await completeLLM(
+          configRef.current, messages, abortRef.current.signal,
+          (p) => setModelLoad(p.progress >= 1 ? null : p)
+        )).trim().replace(/^["“'"']+|["”'"']+$/g, '')
+
         if (stoppingRef.current) return
-        let ev = parseEval(raw)
-        if (!ev) {
-          ev = {
-            correct: false,
-            feedback: raw.trim().slice(0, 240) || 'No pude evaluar la respuesta.',
+        chatRef.current = [...chatRef.current, { role: 'tutor', text }]
+        setChat([...chatRef.current])
+        setMode('speaking')
+        speak(text, voiceNameRef.current, () => {
+          if (!stoppingRef.current) {
+            setMode('listening')
+            sr.clearEnded()
+            sr.reset()
+            setTimeout(() => sr.start(), 80)
           }
-        }
-        setEvalResult(ev)
-        setMode('speaking-eval')
-        speak(ev.feedback, voiceName, () => {
-          if (!stoppingRef.current) setMode('finished')
         })
       } catch (e: any) {
         if (e.name !== 'AbortError') {
-          setError(e.message ?? 'Error al evaluar la respuesta')
+          setError(e.message ?? 'Error al procesar la respuesta')
           setMode('idle')
         }
       }
     })()
-  }, [mode, sr.isListening, sr.transcript, question, voiceName])
+  }, [mode, sr.isListening, sr.ended, sr.transcript])
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (!ttsSupported || !lessonContent.trim()) return null
 
-  const busy = mode === 'thinking-q' || mode === 'thinking-eval'
-  const speaking = mode === 'speaking-q' || mode === 'speaking-eval'
+  const busy = mode === 'thinking'
+  const speaking = mode === 'speaking'
   const listening = mode === 'listening' && sr.isListening
 
   const handleMainClick = () => {
@@ -198,10 +228,13 @@ export default function VoiceTutor() {
       return
     }
     if (mode === 'idle' || mode === 'finished') {
-      askQuestion()
+      if (error && !sr.transcript) { sr.clearEnded(); sr.reset() }
+      startTutoring()
     } else if (listening) {
       sr.stop()
     } else if (mode === 'listening' && !sr.isListening) {
+      // El STT terminó sin captura, reintentar
+      sr.clearEnded()
       sr.reset()
       sr.start()
     } else {
@@ -212,9 +245,9 @@ export default function VoiceTutor() {
   const mainLabel = !isConfigured
     ? 'Configurar agente IA'
     : mode === 'idle'
-      ? 'Empezar tutoría'
+      ? (chat.length > 0 ? 'Reanudar tutoría' : 'Empezar tutoría')
       : mode === 'finished'
-        ? 'Otra pregunta'
+        ? 'Responder de nuevo'
         : listening
           ? 'Terminé de hablar'
           : busy
@@ -297,7 +330,7 @@ export default function VoiceTutor() {
             <ReadingMode content={lessonContent} voiceName={voiceName} />
           )}
 
-          {/* ── Modo Tutoría: preguntas y respuestas por voz ── */}
+          {/* ── Modo Tutoría: conversación multi-turno por voz ── */}
           {tab === 'tutor' && (
             <>
               {!isConfigured && (
@@ -306,76 +339,79 @@ export default function VoiceTutor() {
                 </div>
               )}
 
-              {/* Estado principal */}
-              {(mode === 'idle' || mode === 'finished') && (
+              {/* Intro cuando no hay conversación */}
+              {mode === 'idle' && chat.length === 0 && (
                 <div className="rounded-lg border border-border bg-base p-4 text-center text-xs text-muted">
-                  Pulsa <span className="font-semibold text-purple">Empezar tutoría</span> y el agente formulará una pregunta sobre esta lección, la leerá en voz alta y evaluará tu respuesta hablada.
+                  Pulsa <span className="font-semibold text-purple">Empezar tutoría</span> y el agente iniciará una conversación: formulará una pregunta, escuchará tu respuesta y continuará el diálogo basándose en lo que digas.
                 </div>
               )}
 
-              {/* Pregunta */}
-              {question && (busy || speaking || mode === 'listening' || mode === 'finished') && (
-                <div className="rounded-lg border border-purple/20 bg-purple/5 p-3">
-                  <p className="mb-1 text-[10px] uppercase tracking-wider text-purple/70">Pregunta</p>
-                  {mode === 'thinking-q'
-                    ? <span className="text-xs text-muted">Generando pregunta…</span>
-                    : <p className="text-sm leading-6 text-text/90">{question}</p>}
+              {/* Historial de conversación */}
+              {chat.length > 0 && (
+                <div className="space-y-3">
+                  {chat.map((turn, i) => (
+                    <div
+                      key={i}
+                      className={`rounded-lg border p-3 ${
+                        turn.role === 'tutor'
+                          ? 'border-purple/20 bg-purple/5'
+                          : 'border-blue/20 bg-blue/5'
+                      }`}
+                    >
+                      <p className={`mb-1 text-[10px] uppercase tracking-wider ${
+                        turn.role === 'tutor' ? 'text-purple/70' : 'text-blue/70'
+                      }`}>
+                        {turn.role === 'tutor' ? 'Tutor' : 'Tú'}
+                      </p>
+                      <p className="text-sm leading-6 text-text/90">{turn.text}</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Escuchando */}
+              {/* Indicador de que el tutor está hablando */}
+              {speaking && (
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-green/20 bg-green/5 px-3 py-2 text-xs text-green">
+                  <Volume2 size={12} className="animate-pulse" />
+                  {modelLoad ? 'Preparando respuesta…' : 'El tutor está hablando…'}
+                </div>
+              )}
+
+              {/* Indicador de escucha */}
               {mode === 'listening' && (
                 <div className="mt-3 rounded-lg border border-red/20 bg-red/5 p-3">
                   <p className="text-[10px] uppercase tracking-wider text-red/70">Tu respuesta</p>
                   <p className="mt-1 text-sm leading-6 text-text/90">
-                    {sr.transcript || sr.interim || <span className="text-muted italic">Escuchando…</span>}
+                    {sr.transcript || sr.interim || (sr.isListening
+                      ? <span className="text-muted italic">Escuchando… habla ahora</span>
+                      : <span className="text-muted italic">Procesando…</span>)}
                   </p>
                   <div className="mt-2 flex items-center gap-1.5 text-[11px] text-red">
                     {sr.isListening && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red" />}
-                    {sr.isListening ? 'Te escucho' : 'Pulsa “Terminé de hablar”'}
+                    {sr.isListening ? 'Te escucho — pulsa “Terminé de hablar” cuando acabes' : ''}
                   </div>
-                </div>
-              )}
-
-              {/* Respuesta eval */}
-              {(mode === 'thinking-eval' || mode === 'speaking-eval' || mode === 'finished') && lastAnswer && (
-                <div className="mt-3 rounded-lg border border-blue/20 bg-blue/5 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-blue/70">Tu respuesta</p>
-                  <p className="mt-1 text-sm leading-6 text-text/90">{lastAnswer}</p>
-                </div>
-              )}
-
-              {/* Evaluación */}
-              {evalResult && mode === 'finished' && (
-                <div className={`mt-3 rounded-lg border p-3 ${evalResult.correct ? 'border-green/30 bg-green/10' : 'border-orange/30 bg-orange/10'}`}>
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    {evalResult.correct ? <CheckCircle2 size={16} className="text-green" /> : <XCircle size={16} className="text-orange" />}
-                    <span className={evalResult.correct ? 'text-green' : 'text-orange'}>
-                      {evalResult.correct ? '¡Correcto!' : 'A revisar'}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-sm leading-6 text-text/90">{evalResult.feedback}</p>
                 </div>
               )}
 
               {/* Carga del modelo local */}
-              {modelLoad && (mode === 'thinking-q' || mode === 'thinking-eval') && (
+              {modelLoad && busy && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-cyan/20 bg-cyan/5 p-3 text-xs text-cyan">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan" />
                   {Math.round((modelLoad.progress ?? 0) * 100)}% · {modelLoad.text ?? 'Cargando modelo local…'}
                 </div>
               )}
 
-              {error && <p className="mt-3 text-[11px] text-red">⚠ {error}</p>}
-              {sttSupported === false && mode !== 'idle' && (
-                <p className="mt-3 text-[11px] text-muted">El reconocimiento de voz no está disponible en este navegador.</p>
+              {/* Pensando */}
+              {busy && !modelLoad && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+                  <Loader2 size={12} className="animate-spin" />
+                  El tutor está pensando…
+                </div>
               )}
 
-              {/* Contador de rondas */}
-              {round > 0 && (
-                <p className="mt-4 flex items-center gap-1 text-[10px] tabular-nums text-muted/70">
-                  <RefreshCw size={9} /> Ronda {round}
-                </p>
+              {error && <p className="mt-3 text-[11px] text-red">⚠ {error}</p>}
+              {sttSupported === false && mode !== 'idle' && (
+                <p className="mt-3 text-[11px] text-muted">El reconocimiento de voz no está disponible en este navegador. Usa Chrome o Edge.</p>
               )}
             </>
           )}
