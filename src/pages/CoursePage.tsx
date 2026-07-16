@@ -1,8 +1,9 @@
 import { useParams, Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
+import { useEffect } from 'react'
 import { useCourseData, useLesson } from '../hooks/useCourses'
+import { useVoiceTutor } from '../context/VoiceTutorContext'
 import MarkdownRenderer from '../components/MarkdownRenderer'
-import VoiceTutor from '../components/VoiceTutor'
 import LabView from '../components/LabView'
 import NotebookView from '../components/NotebookView'
 import CourseIndex from '../components/CourseIndex'
@@ -10,9 +11,16 @@ import CourseIndex from '../components/CourseIndex'
 export default function CoursePage() {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId?: string }>()
   const { course, loading: courseLoading } = useCourseData(courseId)
+  const { setLessonContent } = useVoiceTutor()
 
   const currentLessonMeta = course?.lessons.find((l) => l.id === lessonId)
   const { lesson, loading: lessonLoading } = useLesson(courseId, currentLessonMeta?.file)
+
+  // Alimentar al tutor de voz con el contenido de la lección visible (solo lecciones de teoría).
+  const isLessonView = !!lessonId && !!lesson?.displayContent && currentLessonMeta?.type !== 'lab' && lesson?.meta?.type !== 'lab'
+  useEffect(() => {
+    setLessonContent(isLessonView ? lesson!.displayContent : '')
+  }, [isLessonView, lesson, setLessonContent])
 
   if (courseLoading) return <FullPageLoader text="Cargando curso…" />
 
@@ -92,10 +100,7 @@ export default function CoursePage() {
                     <BookOpen size={11} />
                     <span>Lección {(currentIdx ?? 0) + 1}</span>
                   </div>
-                  <div className="flex items-start justify-between gap-4">
-                    <h1 className="text-xl font-bold text-text">{lesson.meta.title}</h1>
-                    <VoiceTutor content={lesson.displayContent} />
-                  </div>
+                  <h1 className="text-xl font-bold text-text">{lesson.meta.title}</h1>
                 </div>
                 <MarkdownRenderer content={lesson.displayContent} />
               </div>

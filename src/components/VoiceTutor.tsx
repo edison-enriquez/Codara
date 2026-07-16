@@ -1,15 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
-  Mic, MicOff, Volume2, VolumeX, Loader2, MessageSquare, X, CheckCircle2, XCircle, RefreshCw,
+  Mic, MicOff, Volume2, Loader2, X, CheckCircle2, XCircle, RefreshCw, Headphones,
 } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
+import { useVoiceTutor, resolveVoice } from '../context/VoiceTutorContext'
 import { completeLLM, type Message, type LoadProgress } from '../utils/llmClient'
 import { extractReadableChunks } from '../utils/speechText'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
-
-interface Props {
-  content: string // lesson displayContent (markdown)
-}
+import VoicePicker from './VoicePicker'
 
 type Mode = 'idle' | 'thinking-q' | 'speaking-q' | 'listening' | 'thinking-eval' | 'speaking-eval' | 'finished'
 
@@ -20,20 +18,18 @@ interface EvalResult {
 
 const SYSTEM = 'Eres un tutor de programación que da clases por voz en español. Formulas preguntas de comprensión basadas en el contenido de la lección y evalúas las respuestas verbales del estudiante. Sé claro, breve y alentador. Usa lenguaje sencillo.'
 
-function speak(text: string, lang: string, onEnd?: () => void): void {
+function speak(text: string, voiceName: string, onEnd?: () => void): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onEnd?.()
     return
   }
   window.speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)
-  u.lang = lang
-  u.rate = 1
-  u.pitch = 1
-  const voices = window.speechSynthesis.getVoices()
-  const base = lang.split('-')[0].toLowerCase()
-  const v = voices.find((vo) => vo.lang.split('-')[0].toLowerCase() === base) ?? voices[0]
+  const v = resolveVoice(voiceName)
   if (v) u.voice = v
+  u.lang = v?.lang ?? 'es-ES'
+  u.rate = 0.98
+  u.pitch = 1
   u.onend = () => onEnd?.()
   u.onerror = () => onEnd?.()
   window.speechSynthesis.speak(u)
@@ -51,8 +47,10 @@ function parseEval(raw: string): EvalResult | null {
   return null
 }
 
-export default function VoiceTutor({ content }: Props) {
+/** Botón flotante + panel lateral deslizable. Se renderiza globalmente. */
+export default function VoiceTutor() {
   const { config, isConfigured, openSettings } = useAgent()
+  const { lessonContent, open, setOpen, voiceName, supported: ttsSupported } = useVoiceTutor()
   const sr = useSpeechRecognition('es-ES')
 
   const [mode, setMode] = useState<Mode>('idle')
@@ -66,13 +64,14 @@ export default function VoiceTutor({ content }: Props) {
   const abortRef = useRef<AbortController | null>(null)
   const stoppingRef = useRef(false)
   const lessonCtxRef = useRef<string>('')
+  const configRef = useRef(config)
+  configRef.current = config
 
-  const ttsSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
   const sttSupported = sr.supported
 
   useEffect(() => {
-    lessonCtxRef.current = extractReadableChunks(content).join('\n\n').slice(0, 6000)
-  }, [content])
+    lessonCtxRef.current = extractReadableChunks(lessonContent).join('\n\n').slice(0, 6000)
+  }, [lessonContent])
 
   useEffect(() => () => {
     abortRef.current?.abort()
@@ -87,6 +86,11 @@ export default function VoiceTutor({ content }: Props) {
     setMode('idle')
   }, [sr, ttsSupported])
 
+  // Al cerrar el panel: detener todo en marcha.
+  useEffect(() => {
+    if (!open) stopAll()
+  }, [open, stopAll])
+
   // ── Generar pregunta ──────────────────────────────────────────────────────
   const askQuestion = useCallback(async () => {
     if (!isConfigured) return
@@ -94,6 +98,7 @@ export default function VoiceTutor({ content }: Props) {
     setEvalResult(null)
     setLastAnswer('')
     setError(null)
+    setModelLoad(null)
     sr.reset()
     setMode('thinking-q')
 
@@ -107,17 +112,15 @@ export default function VoiceTutor({ content }: Props) {
 
     abortRef.current?.abort()
     abortRef.current = new AbortController()
-    setModelLoad(null)
     try {
-      const q = (await completeLLM(config, messages, abortRef.current.signal, (p) => setModelLoad(p.progress >= 1 ? null : p))).trim().replace(/^["“'"']+|["”'"']+$/g, '')
+      const q = (await completeLLM(configRef.current, messages, abortRef.current.signal, (p) => setModelLoad(p.progress >= 1 ? null : p))).trim().replace(/^["“'"']+|["”'"']+$/g, '')
       if (stoppingRef.current) return
       setQuestion(q)
       setRound((r) => r + 1)
       setMode('speaking-q')
-      speak(q, 'es-ES', () => {
+      speak(q, voiceName, () => {
         if (!stoppingRef.current) {
           setMode('listening')
-          // arrancar STT justo cuando termina la TTS
           setTimeout(() => sr.start(), 60)
         }
       })
@@ -127,17 +130,14 @@ export default function VoiceTutor({ content }: Props) {
         setMode('idle')
       }
     }
-  }, [config, isConfigured, sr])
+  }, [isConfigured, sr, voiceName])
 
   // ── Cuando termina de escuchar → evaluar respuesta ────────────────────────
   useEffect(() => {
     if (mode !== 'listening') return
     if (sr.isListening) return
     const ans = sr.transcript.trim()
-    if (!ans) {
-      // silencio / sin captura: re-preguntar una vez o volver a escuchar
-      return
-    }
+    if (!ans) return
     setLastAnswer(ans)
     setMode('thinking-eval')
 
@@ -153,7 +153,7 @@ export default function VoiceTutor({ content }: Props) {
       abortRef.current = new AbortController()
       setModelLoad(null)
       try {
-        const raw = await completeLLM(config, messages, abortRef.current.signal, (p) => setModelLoad(p.progress >= 1 ? null : p))
+        const raw = await completeLLM(configRef.current, messages, abortRef.current.signal, (p) => setModelLoad(p.progress >= 1 ? null : p))
         if (stoppingRef.current) return
         let ev = parseEval(raw)
         if (!ev) {
@@ -164,7 +164,7 @@ export default function VoiceTutor({ content }: Props) {
         }
         setEvalResult(ev)
         setMode('speaking-eval')
-        speak(ev.feedback, 'es-ES', () => {
+        speak(ev.feedback, voiceName, () => {
           if (!stoppingRef.current) setMode('finished')
         })
       } catch (e: any) {
@@ -174,42 +174,25 @@ export default function VoiceTutor({ content }: Props) {
         }
       }
     })()
-  }, [mode, sr.isListening, sr.transcript, question, config])
+  }, [mode, sr.isListening, sr.transcript, question, voiceName])
 
   // ── Render ────────────────────────────────────────────────────────────────
-  if (!ttsSupported) {
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-muted" title="Tu navegador no soporta síntesis de voz">
-        <VolumeX size={12} />
-        <span>Voz no disponible</span>
-      </div>
-    )
-  }
-
-  if (!isConfigured) {
-    return (
-      <button
-        onClick={openSettings}
-        className="flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-xs text-muted hover:border-green/40 hover:text-text transition-colors"
-        title="Configura el agente IA para activar el tutor de voz"
-      >
-        <MessageSquare size={11} />
-        <span>Tutor de voz (requiere Agente IA)</span>
-      </button>
-    )
-  }
+  if (!ttsSupported || !lessonContent.trim()) return null
 
   const busy = mode === 'thinking-q' || mode === 'thinking-eval'
   const speaking = mode === 'speaking-q' || mode === 'speaking-eval'
   const listening = mode === 'listening' && sr.isListening
 
   const handleMainClick = () => {
+    if (!isConfigured) {
+      openSettings()
+      return
+    }
     if (mode === 'idle' || mode === 'finished') {
       askQuestion()
     } else if (listening) {
       sr.stop()
     } else if (mode === 'listening' && !sr.isListening) {
-      // reconocimiento ya cerró sin captura: reiniciar
       sr.reset()
       sr.start()
     } else {
@@ -217,107 +200,166 @@ export default function VoiceTutor({ content }: Props) {
     }
   }
 
-  const mainLabel = mode === 'idle'
-    ? 'Tutor de voz'
-    : mode === 'finished'
-      ? 'Otra pregunta'
-      : listening
-        ? 'Terminé de hablar'
-        : busy
-          ? 'Pensando…'
-          : speaking
-            ? 'Hablando…'
-            : 'Detener'
+  const mainLabel = !isConfigured
+    ? 'Configurar agente IA'
+    : mode === 'idle'
+      ? 'Empezar tutoría'
+      : mode === 'finished'
+        ? 'Otra pregunta'
+        : listening
+          ? 'Terminé de hablar'
+          : busy
+            ? 'Pensando…'
+            : speaking
+              ? 'Hablando…'
+              : 'Detener'
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
+      {/* Botón flotante */}
       <button
-        onClick={handleMainClick}
-        className={`flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-medium transition-colors ${
-          mode === 'idle' || mode === 'finished'
-            ? 'border-border text-muted hover:border-green/40 hover:text-text'
-            : listening
-              ? 'border-red/50 bg-red/10 text-red hover:bg-red/20'
-              : 'border-green/40 bg-green/10 text-green hover:bg-green/20'
-        }`}
-        title="Inicia una tutoría por voz: el agente hace una pregunta, la lee, escucha tu respuesta y la evalúa"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-purple/40 bg-surface text-purple shadow-lg shadow-purple/10 hover:bg-purple/10 hover:border-purple transition-colors"
+        title="Tutor de voz"
+        aria-label="Abrir tutor de voz"
       >
-        {busy ? (
-          <Loader2 size={11} className="animate-spin" />
-        ) : listening ? (
-          <MicOff size={11} />
-        ) : (
-          <Mic size={11} />
-        )}
-        <Volume2 size={11} />
-        <span>{mainLabel}</span>
+        <Headphones size={20} />
       </button>
 
-      {mode !== 'idle' && mode !== 'finished' && (
-        <button
-          onClick={stopAll}
-          className="flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted hover:border-red/40 hover:text-red transition-colors"
-          title="Cancelar tutoría"
-        >
-          <X size={10} />
-        </button>
+      {/* Overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:bg-transparent"
+          onClick={() => setOpen(false)}
+        />
       )}
 
-      {sttSupported === false && mode !== 'idle' && (
-        <span className="text-[10px] text-muted">El reconocimiento de voz no está disponible en este navegador; responde improvisando.</span>
-      )}
+      {/* Panel lateral */}
+      <aside
+        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-surface shadow-2xl transition-transform duration-300 ${
+          open ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+        }`}
+        aria-hidden={!open}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Headphones size={15} className="text-purple" />
+            <span className="text-sm font-semibold text-text">Tutor de voz</span>
+          </div>
+          <button
+            onClick={() => setOpen(false)}
+            className="flex h-7 w-7 items-center justify-center rounded text-muted hover:bg-elevated hover:text-text transition-colors"
+            aria-label="Cerrar"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
-      {error && <span className="text-[10px] text-red">⚠ {error}</span>}
+        {/* Scroll area */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {/* Configuración de voz */}
+          {!isConfigured && (
+            <div className="mb-4 rounded-lg border border-yellow/20 bg-yellow/5 p-3 text-xs text-text/80">
+              Para iniciar una tutoría por voz, primero configura el agente IA (Groq o modelo local).
+            </div>
+          )}
+          <VoicePicker />
 
-      {modelLoad && (mode === 'thinking-q' || mode === 'thinking-eval') && (
-        <span className="flex items-center gap-1.5 text-[10px] text-cyan">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan" />
-          {Math.round((modelLoad.progress ?? 0) * 100)}% · {modelLoad.text ?? 'Cargando modelo local…'}
-        </span>
-      )}
+          <div className="my-4 h-px bg-border" />
 
-      {question && (speaking || mode === 'listening' || busy || mode === 'finished') && (
-        <div className="hidden max-w-md items-start gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs leading-5 text-text/80 md:flex">
-          {mode === 'thinking-q' && <span className="text-muted">Generando pregunta…</span>}
-          {mode !== 'thinking-q' && (
-            <>
-              <span className="font-semibold text-purple shrink-0">P:</span>
-              <span>{question}</span>
-            </>
+          {/* Estado principal */}
+          {(mode === 'idle' || mode === 'finished') && (
+            <div className="rounded-lg border border-border bg-base p-4 text-center text-xs text-muted">
+              Pulsa <span className="font-semibold text-purple">Empezar tutoría</span> y el agente formulará una pregunta sobre esta lección, la leerá en voz alta y evaluará tu respuesta hablada.
+            </div>
+          )}
+
+          {/* Pregunta */}
+          {question && (busy || speaking || mode === 'listening' || mode === 'finished') && (
+            <div className="rounded-lg border border-purple/20 bg-purple/5 p-3">
+              <p className="mb-1 text-[10px] uppercase tracking-wider text-purple/70">Pregunta</p>
+              {mode === 'thinking-q'
+                ? <span className="text-xs text-muted">Generando pregunta…</span>
+                : <p className="text-sm leading-6 text-text/90">{question}</p>}
+            </div>
+          )}
+
+          {/* Escuchando */}
+          {mode === 'listening' && (
+            <div className="mt-3 rounded-lg border border-red/20 bg-red/5 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-red/70">Tu respuesta</p>
+              <p className="mt-1 text-sm leading-6 text-text/90">
+                {sr.transcript || sr.interim || <span className="text-muted italic">Escuchando…</span>}
+              </p>
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-red">
+                {sr.isListening && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red" />}
+                {sr.isListening ? 'Te escucho' : 'Pulsa “Terminé de hablar”'}
+              </div>
+            </div>
+          )}
+
+          {/* Respuesta eval */}
+          {(mode === 'thinking-eval' || mode === 'speaking-eval' || mode === 'finished') && lastAnswer && (
+            <div className="mt-3 rounded-lg border border-blue/20 bg-blue/5 p-3">
+              <p className="text-[10px] uppercase tracking-wider text-blue/70">Tu respuesta</p>
+              <p className="mt-1 text-sm leading-6 text-text/90">{lastAnswer}</p>
+            </div>
+          )}
+
+          {/* Evaluación */}
+          {evalResult && mode === 'finished' && (
+            <div className={`mt-3 rounded-lg border p-3 ${evalResult.correct ? 'border-green/30 bg-green/10' : 'border-orange/30 bg-orange/10'}`}>
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                {evalResult.correct ? <CheckCircle2 size={16} className="text-green" /> : <XCircle size={16} className="text-orange" />}
+                <span className={evalResult.correct ? 'text-green' : 'text-orange'}>
+                  {evalResult.correct ? '¡Correcto!' : 'A revisar'}
+                </span>
+              </div>
+              <p className="mt-1.5 text-sm leading-6 text-text/90">{evalResult.feedback}</p>
+            </div>
+          )}
+
+          {/* Carga del modelo local */}
+          {modelLoad && (mode === 'thinking-q' || mode === 'thinking-eval') && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-cyan/20 bg-cyan/5 p-3 text-xs text-cyan">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan" />
+              {Math.round((modelLoad.progress ?? 0) * 100)}% · {modelLoad.text ?? 'Cargando modelo local…'}
+            </div>
+          )}
+
+          {error && <p className="mt-3 text-[11px] text-red">⚠ {error}</p>}
+          {sttSupported === false && mode !== 'idle' && (
+            <p className="mt-3 text-[11px] text-muted">El reconocimiento de voz no está disponible en este navegador.</p>
+          )}
+
+          {/* Contador de rondas */}
+          {round > 0 && (
+            <p className="mt-4 flex items-center gap-1 text-[10px] tabular-nums text-muted/70">
+              <RefreshCw size={9} /> Ronda {round}
+            </p>
           )}
         </div>
-      )}
 
-      {mode === 'listening' && (
-        <span className="text-[11px] text-muted">
-          {sr.isListening ? (
-            <>
-              <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red align-middle" />
-              Escuchando… {sr.interim && <span className="italic text-muted/70">{sr.interim}</span>}
-            </>
-          ) : 'Pulsa “Terminé de hablar” cuando respondas.'}
-        </span>
-      )}
-
-      {lastAnswer && (mode === 'thinking-eval' || mode === 'speaking-eval' || mode === 'finished') && (
-        <div className="hidden max-w-md items-start gap-2 rounded-md border border-border bg-surface px-3 py-2 text-xs leading-5 text-text/80 md:flex">
-          <span className="font-semibold text-blue shrink-0">R:</span>
-          <span>{lastAnswer}</span>
+        {/* Footer con acción principal */}
+        <div className="border-t border-border p-4">
+          <button
+            onClick={handleMainClick}
+            disabled={busy}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50 ${
+              listening
+                ? 'border-red/50 bg-red/10 text-red hover:bg-red/20'
+                : 'border-purple/40 bg-purple/10 text-purple hover:bg-purple/20'
+            }`}
+          >
+            {busy ? <Loader2 size={15} className="animate-spin" />
+              : listening ? <MicOff size={15} />
+              : <Mic size={15} />}
+            <Volume2 size={15} />
+            <span>{mainLabel}</span>
+          </button>
         </div>
-      )}
-
-      {evalResult && mode === 'finished' && (
-        <div className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium ${evalResult.correct ? 'text-green' : 'text-orange'}`}>
-          {evalResult.correct ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
-          <span>{evalResult.correct ? '¡Correcto!' : 'Repasa esto'}</span>
-        </div>
-      )}
-
-      {round > 0 && (
-        <span className="hidden text-[10px] tabular-nums text-muted/70 sm:inline">
-          <RefreshCw size={9} className="inline" /> {round}
-        </span>
-      )}
-    </div>
+      </aside>
+    </>
   )
 }

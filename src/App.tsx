@@ -8,6 +8,8 @@ import AgentSettings from './components/AgentSettings'
 import { useTheme, ThemeContext } from './hooks/useTheme'
 import { AuthProvider } from './context/AuthContext'
 import { AgentProvider, useAgent } from './context/AgentContext'
+import { VoiceTutorProvider } from './context/VoiceTutorContext'
+import VoiceTutor from './components/VoiceTutor'
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -44,6 +46,7 @@ function AppShell({ theme, toggle }: { theme: string; toggle: () => void }) {
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
         </Routes>
       </main>
+      <VoiceTutor />
       {settingsOpen && <AgentSettings />}
     </div>
   )
@@ -57,9 +60,11 @@ export default function App() {
       <ThemeContext.Provider value={theme}>
         <AuthProvider>
           <AgentProvider>
-            <BrowserRouter basename="/Codara">
-              <AppShell theme={theme} toggle={toggle} />
-            </BrowserRouter>
+            <VoiceTutorProvider>
+              <BrowserRouter basename="/Codara">
+                <AppShell theme={theme} toggle={toggle} />
+              </BrowserRouter>
+            </VoiceTutorProvider>
           </AgentProvider>
         </AuthProvider>
       </ThemeContext.Provider>
