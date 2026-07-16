@@ -21,3 +21,20 @@ export async function streamLLM(
   }
   return streamGroq({ apiKey: config.apiKey, model: config.groqModel }, messages, onChunk, signal)
 }
+
+/**
+ * Versión no-streaming de `streamLLM`: acumula todos los chunks y devuelve el
+ * texto completo. Útil para llamadas puntuales del agente (p.ej. el tutor de
+ * voz, que necesita la respuesta entera antes de sintetizarla).
+ * `onProgress` solo aplica a WebLLM (descarga/init del modelo la 1ª vez).
+ */
+export async function completeLLM(
+  config: AgentConfig,
+  messages: Message[],
+  signal?: AbortSignal,
+  onProgress?: (p: LoadProgress) => void,
+): Promise<string> {
+  let out = ''
+  await streamLLM(config, messages, (text) => { out += text }, signal, onProgress)
+  return out
+}
