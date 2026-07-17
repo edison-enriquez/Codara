@@ -244,6 +244,8 @@ export default function VoiceTutor() {
   const busy = mode === 'thinking'
   const speaking = mode === 'speaking'
   const listening = mode === 'listening' && sr.isListening
+  // Modo "lava": el orbe ocupa todo el panel, sin texto visible.
+  const lavaMode = mode === 'speaking' || (mode === 'listening')
 
   const handleMainClick = () => {
     if (!isConfigured) {
@@ -306,45 +308,56 @@ export default function VoiceTutor() {
           </button>
         </div>
 
-        {/* Scroll area */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {/* Selector de voz */}
-          <VoicePicker />
-
-          {/* ── Orbe de voz (estilo Sesame) ── */}
-          <div className="my-4 flex flex-col items-center gap-2">
+        {/* ── Modo LAVA: orbe ocupa todo el espacio, sin texto ni footer ── */}
+        {lavaMode && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-8">
             <VoiceOrb
-              state={mode === 'speaking' ? 'speaking' : (mode === 'listening' && sr.isListening) ? 'listening' : 'idle'}
-              level={mode === 'speaking' ? orbSpeakerLevel : (mode === 'listening' ? orbListenLevel : 0)}
-              size={120}
+              state={mode === 'speaking' ? 'speaking' : 'listening'}
+              level={mode === 'speaking' ? orbSpeakerLevel : orbListenLevel}
+              size={220}
             />
-            <p className="text-[11px] text-muted">
-              {mode === 'speaking'
-                ? 'El tutor está hablando…'
-                : mode === 'listening'
-                  ? (sr.hasSpeech ? 'Te escucho…' : 'Escuchando…')
-                  : mode === 'thinking'
-                    ? 'Pensando…'
-                    : ''}
-            </p>
+            <div className="text-center">
+              <p className="text-sm font-medium text-text/90">
+                {mode === 'speaking' ? 'El tutor está hablando…' : sr.hasSpeech ? 'Procesando…' : 'Escuchando…'}
+              </p>
+              <p className="mt-1 text-[11px] text-muted">
+                {mode === 'speaking'
+                  ? 'Pulsa “Interrumpir” para pausar'
+                  : 'Habla de forma natural — al pausar, se envía solo'}
+              </p>
+            </div>
+            <button
+              onClick={stopAll}
+              className="mt-2 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs text-muted hover:border-red/40 hover:text-red transition-colors"
+            >
+              <X size={13} />
+              Interrumpir / Volver al chat
+            </button>
           </div>
+        )}
 
-          {/* ── Tutoría: conversación multi-turno por voz ── */}
+        {/* ── Modo CHAT: conversación visible + inputs ── */}
+        {!lavaMode && (
           <>
-            {!isConfigured && (
-              <div className="mb-4 mt-4 rounded-lg border border-yellow/20 bg-yellow/5 p-3 text-xs text-text/80">
-                Para iniciar una tutoría por voz, primero configura el agente IA (Groq o modelo local).
-              </div>
-            )}
+            {/* Scroll area */}
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {/* Selector de voz */}
+              <VoicePicker />
 
-              {/* Intro cuando no hay conversación */}
-              {mode === 'idle' && chat.length === 0 && (
-                <div className="rounded-lg border border-border bg-base p-4 text-center text-xs text-muted">
-                  Pulsa <span className="font-semibold text-purple">Hablar</span> y conversa de forma natural: cuando dejes de hablar, el tutor enviará tu respuesta automáticamente y seguirá el diálogo. También puedes escribir abajo si prefieres texto.
+              {!isConfigured && (
+                <div className="mb-4 mt-4 rounded-lg border border-yellow/20 bg-yellow/5 p-3 text-xs text-text/80">
+                  Para iniciar una tutoría por voz, primero configura el agente IA (Groq o modelo local).
                 </div>
               )}
 
-              {/* Historial de conversación */}
+              {/* Intro */}
+              {mode === 'idle' && chat.length === 0 && (
+                <div className="rounded-lg border border-border bg-base p-4 text-center text-xs text-muted">
+                  Pulsa <span className="font-semibold text-purple">Hablar</span> y conversa de forma natural: cuando dejes de hablar, el tutor enviará tu respuesta automáticamente y seguirá el diálogo. También puedes escribir abajo.
+                </div>
+              )}
+
+              {/* Historial */}
               {chat.length > 0 && (
                 <div className="space-y-3">
                   {chat.map((turn, i) => (
@@ -367,16 +380,6 @@ export default function VoiceTutor() {
                 </div>
               )}
 
-              {/* Indicador de transcripción en vivo */}
-              {mode === 'listening' && (sr.transcript || sr.interim) && (
-                <div className="mt-3 rounded-lg border border-red/20 bg-red/5 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-red/70">Tu respuesta</p>
-                  <p className="mt-1 text-sm leading-6 text-text/90">
-                    {sr.transcript || sr.interim}
-                  </p>
-                </div>
-              )}
-
               {/* Carga del modelo local */}
               {modelLoad && busy && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-cyan/20 bg-cyan/5 p-3 text-xs text-cyan">
@@ -394,62 +397,57 @@ export default function VoiceTutor() {
               )}
 
               {error && <p className="mt-3 text-[11px] text-red">⚠ {error}</p>}
-              {sttSupported === false && mode !== 'idle' && (
+              {sttSupported === false && (
                 <p className="mt-3 text-[11px] text-muted">El reconocimiento de voz no está disponible en este navegador. Usa Chrome o Edge.</p>
               )}
+            </div>
+
+            {/* Footer: input de texto + botón de voz */}
+            <div className="border-t border-border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={textDraft}
+                  onChange={(e) => setTextDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (!isConfigured) { openSettings(); return }
+                      if (!busy && textDraft.trim()) sendResponse(textDraft)
+                    }
+                  }}
+                  placeholder={chat.length === 0 ? 'Escribe para iniciar…' : 'Escribe tu respuesta…'}
+                  disabled={busy}
+                  className="flex-1 rounded-lg border border-border bg-base px-3 py-2.5 text-sm text-text placeholder:text-muted/60 focus:border-purple/50 focus:outline-none disabled:opacity-50"
+                  aria-label="Respuesta de texto"
+                />
+                <button
+                  onClick={() => {
+                    if (!isConfigured) { openSettings(); return }
+                    if (!busy && textDraft.trim()) sendResponse(textDraft)
+                  }}
+                  disabled={busy || !textDraft.trim()}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-purple/40 bg-purple/10 text-purple hover:bg-purple/20 disabled:opacity-40 transition-colors"
+                  title="Enviar respuesta"
+                  aria-label="Enviar respuesta"
+                >
+                  <Send size={14} />
+                </button>
+              </div>
+
+              {sttSupported && (
+                <button
+                  onClick={handleMainClick}
+                  disabled={busy}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 border-border text-muted hover:border-purple/40 hover:text-purple"
+                >
+                  <Mic size={15} />
+                  <span>Hablar</span>
+                </button>
+              )}
+            </div>
           </>
-        </div>
-
-        {/* Footer: input de texto + botones deacción */}
-        <div className="border-t border-border p-4 space-y-2">
-          {/* Input de texto para responder como chat */}
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={textDraft}
-              onChange={(e) => setTextDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  if (!isConfigured) { openSettings(); return }
-                  if (!busy && textDraft.trim()) sendResponse(textDraft)
-                }
-              }}
-              placeholder={chat.length === 0 ? 'Escribe para iniciar…' : 'Escribe tu respuesta…'}
-              disabled={busy}
-              className="flex-1 rounded-lg border border-border bg-base px-3 py-2.5 text-sm text-text placeholder:text-muted/60 focus:border-purple/50 focus:outline-none disabled:opacity-50"
-              aria-label="Respuesta de texto"
-            />
-            <button
-              onClick={() => {
-                if (!isConfigured) { openSettings(); return }
-                if (!busy && textDraft.trim()) sendResponse(textDraft)
-              }}
-              disabled={busy || !textDraft.trim()}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-purple/40 bg-purple/10 text-purple hover:bg-purple/20 disabled:opacity-40 transition-colors"
-              title="Enviar respuesta"
-              aria-label="Enviar respuesta"
-            >
-              <Send size={14} />
-            </button>
-          </div>
-
-          {/* Botón de voz */}
-          {sttSupported && (
-            <button
-              onClick={handleMainClick}
-              disabled={busy}
-              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 ${
-                listening
-                  ? 'border-red/50 bg-red/10 text-red hover:bg-red/20'
-                  : 'border-border text-muted hover:border-purple/40 hover:text-purple'
-              }`}
-            >
-              {listening ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
-              <span>{listening ? 'Detener' : 'Hablar'}</span>
-            </button>
-          )}
-        </div>
+        )}
       </aside>
     </>
   )
