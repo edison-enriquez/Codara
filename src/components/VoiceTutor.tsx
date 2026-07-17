@@ -325,12 +325,16 @@ setMarks([])
 
       if (stoppingRef.current) return
       let { speech, marks } = parseSpeech(raw)
-      // Post-procesamiento: si el agente puso ==UL==/==HL== en el speech,
-      // extraerlos como marcas y limpiar el texto
+      // Preservar texto original (con ==UL==/==HL== tags) para el display
+      const rawDisplay = speech
+      // Post-procesamiento: extraer tags del speech como marcas y limpiar para TTS
       const extracted = extractMarksFromSpeech(speech, marks)
-      speech = extracted.cleanSpeech
+      const ttsText = extracted.cleanSpeech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
       marks = extracted.allMarks
-      let text = speech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
+      // Para el chat mostramos el texto con los tags (renderChatText los estiliza)
+      let text = rawDisplay.match(/==(HL|UL)==/)
+        ? rawDisplay.replace(/^["“'"']+|["”'"']+$/g, '')
+        : ttsText
 
       // ── Auto-verificación: ¿las marcas del LLM están realmente en la lección? ──
       const invalidMarks = marks.filter((mk) => mk.text.length > 4 && !markIsValid(mk.text, lessonContent))
@@ -362,7 +366,7 @@ setMarks([])
       chatRef.current = [...chatRef.current, { role: 'tutor', text }]
       setChat([...chatRef.current])
       setMode('speaking')
-      speak(text, voiceNameRef.current, () => {
+      speak(ttsText, voiceNameRef.current, () => {
         if (!stoppingRef.current) {
           setMode('listening')
           sr.clearEnded()
