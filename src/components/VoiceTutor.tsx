@@ -1,13 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
-  Mic, MicOff, Volume2, Loader2, X, Headphones, Send,
+  Mic, Loader2, X, Headphones, Send,
 } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
 import { useVoiceTutor, resolveVoice } from '../context/VoiceTutorContext'
 import { completeLLM, type Message, type LoadProgress } from '../utils/llmClient'
 import { extractReadableChunks } from '../utils/speechText'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { useVAD } from '../hooks/useVAD'
 import VoicePicker from './VoicePicker'
+import VoiceOrb from './VoiceOrb'
 
 type Mode =
   | 'idle'
@@ -54,12 +56,14 @@ export default function VoiceTutor() {
   const { config, isConfigured, openSettings } = useAgent()
   const { lessonContent, open, setOpen, voiceName, supported: ttsSupported } = useVoiceTutor()
   const sr = useSpeechRecognition('es-ES')
+  const vad = useVAD()
 
   const [mode, setMode] = useState<Mode>('idle')
   const [chat, setChat] = useState<ChatTurn[]>([])
   const [error, setError] = useState<string | null>(null)
   const [modelLoad, setModelLoad] = useState<LoadProgress | null>(null)
   const [textDraft, setTextDraft] = useState('')
+  const [orbSpeakerLevel, setOrbSpeakerLevel] = useState(0) // nivel sintético para el orbe cuando el tutor habla
 
   const abortRef = useRef<AbortController | null>(null)
   const stoppingRef = useRef(false)
@@ -72,23 +76,77 @@ export default function VoiceTutor() {
 
   const sttSupported = sr.supported
 
+  // Referencias que el effect del VAD necesita sin re-crearse.
+  const modeRef = useRef(mode)
+  modeRef.current = mode
+  const chatRefLocal = chatRef
+  const vadSpeakingSeenRef = useRef(false)
+  const sendResponseRef = useRef<(t: string) => void>(() => {})
+
   useEffect(() => {
     lessonCtxRef.current = extractReadableChunks(lessonContent).join('\n\n').slice(0, 6000)
   }, [lessonContent])
 
+  // ── Modulación sintética para el orbe mientras el tutor habla (TTS) ──────
+  useEffect(() => {
+    if (mode !== 'speaking') {
+      setOrbSpeakerLevel(0)
+      return
+    }
+    const id = setInterval(() => {
+      // Pseudo-módulación de sílabas: combina senos + ruido suave
+      const t = performance.now() / 1000
+      const lvl = 0.35 + 0.45 * Math.abs(Math.sin(t * 7) * Math.sin(t * 2.3)) + 0.1 * Math.random()
+      setOrbSpeakerLevel(Math.min(1, lvl))
+    }, 50)
+    return () => clearInterval(id)
+  }, [mode])
+
+  // ── VAD: arrancar cuando entramos en escucha, parar al salir ───────────
+  useEffect(() => {
+    if (mode === 'listening') {
+      if (!vad.active) vad.start()
+      vadSpeakingSeenRef.current = false
+    } else {
+      if (vad.active) vad.stop()
+    }
+  }, [mode, vad])
+
+  // ── Auto-envío cuando el usuario deja de hablar (VAD) ───────────────────
+  // Si el VAD detectó voz y luego silencio, y hay transcripción, envía solo.
+  useEffect(() => {
+    if (mode !== 'listening') return
+    if (vad.speaking) { vadSpeakingSeenRef.current = true; return }
+    // silencio actual
+    if (!vadSpeakingSeenRef.current) return // aún no había hablado
+    const ans = sr.transcript.trim() || sr.interim.trim()
+    // Pequeño debounce para no cortar pausas naturales
+    const tid = setTimeout(() => {
+      if (modeRef.current !== 'listening') return
+      if (vad.speaking) return // retomó el habla
+      if (ans) {
+        vadSpeakingSeenRef.current = false
+        sendResponseRef.current(ans)
+      }
+    }, 400)
+    return () => clearTimeout(tid)
+  }, [vad.speaking, mode, sr.transcript, sr.interim])
+
   useEffect(() => () => {
     abortRef.current?.abort()
     if (ttsSupported) window.speechSynthesis.cancel()
-  }, [ttsSupported])
+    vad.stop()
+  }, [ttsSupported, vad])
 
   const stopAll = useCallback(() => {
     stoppingRef.current = true
     abortRef.current?.abort()
     if (ttsSupported) window.speechSynthesis.cancel()
     sr.stop()
+    vad.stop()
     setMode('idle')
     setModelLoad(null)
-  }, [sr, ttsSupported])
+  }, [sr, ttsSupported, vad])
 
   // Al cerrar el panel: detener todo en marcha.
   useEffect(() => {
@@ -117,6 +175,7 @@ export default function VoiceTutor() {
 
     // Detener escucha si estaba activa
     sr.stop()
+    vad.stop()
     if (ttsSupported) window.speechSynthesis.cancel()
 
     const isFirst = chatRef.current.length === 0
@@ -156,6 +215,9 @@ export default function VoiceTutor() {
       }
     }
   }, [sr, ttsSupported])
+
+  // Mantener ref del sendResponse para el effect del VAD.
+  useEffect(() => { sendResponseRef.current = sendResponse }, [sendResponse])
 
   // ── Cuando el STT termina → enviar la respuesta del estudiante al LLM ────
   useEffect(() => {
@@ -248,6 +310,24 @@ export default function VoiceTutor() {
           {/* Selector de voz */}
           <VoicePicker />
 
+          {/* ── Orbe de voz (estilo Sesame) ── */}
+          <div className="my-4 flex flex-col items-center gap-2">
+            <VoiceOrb
+              state={mode === 'speaking' ? 'speaking' : (mode === 'listening' && vad.active) ? 'listening' : 'idle'}
+              level={mode === 'speaking' ? orbSpeakerLevel : (mode === 'listening' ? vad.level : 0)}
+              size={120}
+            />
+            <p className="text-[11px] text-muted">
+              {mode === 'speaking'
+                ? 'El tutor está hablando…'
+                : mode === 'listening'
+                  ? (vad.speaking ? 'Te escucho…' : 'Escuchando…')
+                  : mode === 'thinking'
+                    ? 'Pensando…'
+                    : ''}
+            </p>
+          </div>
+
           {/* ── Tutoría: conversación multi-turno por voz ── */}
           <>
             {!isConfigured && (
@@ -286,27 +366,13 @@ export default function VoiceTutor() {
                 </div>
               )}
 
-              {/* Indicador de que el tutor está hablando */}
-              {speaking && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-green/20 bg-green/5 px-3 py-2 text-xs text-green">
-                  <Volume2 size={12} className="animate-pulse" />
-                  {modelLoad ? 'Preparando respuesta…' : 'El tutor está hablando…'}
-                </div>
-              )}
-
-              {/* Indicador de escucha */}
-              {mode === 'listening' && (
+              {/* Indicador de transcripción en vivo */}
+              {mode === 'listening' && (sr.transcript || sr.interim) && (
                 <div className="mt-3 rounded-lg border border-red/20 bg-red/5 p-3">
                   <p className="text-[10px] uppercase tracking-wider text-red/70">Tu respuesta</p>
                   <p className="mt-1 text-sm leading-6 text-text/90">
-                    {sr.transcript || sr.interim || (sr.isListening
-                      ? <span className="text-muted italic">Escuchando… habla ahora</span>
-                      : <span className="text-muted italic">Procesando…</span>)}
+                    {sr.transcript || sr.interim}
                   </p>
-                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-red">
-                    {sr.isListening && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red" />}
-                    {sr.isListening ? 'Te escucho — pulsa “Terminé de hablar” cuando acabes' : ''}
-                  </div>
                 </div>
               )}
 
