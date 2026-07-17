@@ -259,10 +259,10 @@ export default function VoiceTutor() {
         <Headphones size={20} />
       </button>
 
-      {/* Overlay */}
+      {/* Overlay (solo móvil: en escritorio no bloquea el contenido) */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:bg-transparent"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setOpen(false)}
         />
       )}
