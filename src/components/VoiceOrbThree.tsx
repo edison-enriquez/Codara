@@ -148,26 +148,26 @@ export default function VoiceOrbThree({ mode, level = 0, size = 220, particleCou
 
           void main() {
             float n = noise3(aDir, uTime);
-            float bulge = aBaseRadius * (0.025 + uBass * 0.12) * n;
+            float bulge = aBaseRadius * (0.045 + uBass * 0.2) * n;
             float flareWave = max(0.0, sin(uTime * 2.2 + aPhase * 3.0));
-            float flareBoost = aFlare * (0.4 + uEnergy * 1.2) * flareWave;
-            float r = aBaseRadius + bulge + aFlare * aBaseRadius * 0.8 * flareBoost;
+            float flareBoost = aFlare * (0.6 + uEnergy * 2.0) * flareWave;
+            float r = aBaseRadius + bulge + aFlare * aBaseRadius * 1.2 * flareBoost;
             vec3 pos = aDir * r;
 
             // Mode-specific displacement
             float modeDisp = 0.0;
             if (uMode > 2.5) {
               // speaking: pulse with energy
-              modeDisp = sin(uTime * 4.0 + aPhase) * uEnergy * 0.08;
+              modeDisp = sin(uTime * 4.0 + aPhase) * uEnergy * 0.2;
             } else if (uMode > 1.5) {
               // thinking: quick shimmer
-              modeDisp = sin(uTime * 6.0 + aPhase * 5.0) * 0.06;
+              modeDisp = sin(uTime * 6.0 + aPhase * 5.0) * 0.12;
             } else if (uMode > 0.5) {
               // listening: audio-driven warp
-              modeDisp = sin(uTime * 2.0 + aPhase * 2.0 + n * 3.0) * uEnergy * 0.12;
+              modeDisp = sin(uTime * 2.0 + aPhase * 2.0 + n * 3.0) * uEnergy * 0.25;
             } else {
               // idle: gentle breathe
-              modeDisp = sin(uTime * 0.8 + aPhase) * 0.03;
+              modeDisp = sin(uTime * 0.8 + aPhase) * 0.05;
             }
             pos += aDir * modeDisp * aBaseRadius;
 
@@ -180,7 +180,7 @@ export default function VoiceOrbThree({ mode, level = 0, size = 220, particleCou
             float twinkleSpeed = uMode > 1.5 ? 3.5 : 1.4;
             float twinkle = 0.6 + 0.4 * sin(uTime * (twinkleSpeed + aPhase * 0.3) + aPhase * 3.0);
 
-            vAlpha = clamp(0.3 + rim * 0.75, 0.0, 1.0) * twinkle;
+            vAlpha = clamp(0.25 + rim * 0.9, 0.0, 1.0) * twinkle;
 
             // Color: blend base gradient with mode theme color
             float heightT = (aDir.y + 1.0) * 0.5;
@@ -189,8 +189,8 @@ export default function VoiceOrbThree({ mode, level = 0, size = 220, particleCou
             vColor = mix(aColor * (0.55 + rim * 0.75), gradColor, modeInfluence);
             vColor *= (0.55 + rim * 0.75 + uEnergy * 0.5);
 
-            float baseSize = 1.4 + aFlare * 2.2 + uEnergy * 1.2;
-            float modeSize = uMode > 2.5 ? uEnergy * 2.0 : uMode > 1.5 ? 0.8 : 0.0;
+            float baseSize = 1.4 + aFlare * 2.2 + uEnergy * 2.0;
+            float modeSize = uMode > 2.5 ? uEnergy * 3.0 : uMode > 1.5 ? 1.2 : 0.0;
             gl_PointSize = (baseSize + modeSize) * (300.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
           }
@@ -304,7 +304,7 @@ export default function VoiceOrbThree({ mode, level = 0, size = 220, particleCou
         uniforms.uColorBot.value.setRGB(dim[0], dim[1], dim[2])
 
         // ── Rotation ─────────────────────────────────────────────────
-        const rotSpeed = cm === 'thinking' ? 0.6 : 0.08 + smoothEnergy * 0.35
+        const rotSpeed = cm === 'thinking' ? 1.0 : 0.15 + smoothEnergy * 0.6
         group.rotation.y += delta * rotSpeed
         group.rotation.x = 0.12 + Math.sin(t * 0.15) * 0.03
 
