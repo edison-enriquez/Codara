@@ -63,16 +63,16 @@ export function resolveVoice(preferredName?: string): SpeechSynthesisVoice | nul
 // ─── Contexto del tutor ─────────────────────────────────────────────────────
 
 interface VoiceTutorContextValue {
-  /** Contenido markdown de la lección actual (vacío ⇒ sin tutor disponible). */
   lessonContent: string
   setLessonContent: (content: string) => void
-  /** Panel abierto/cerrado. */
   open: boolean
   setOpen: (o: boolean) => void
-  /** Voz seleccionada (nombre). */
   voiceName: string
   setVoiceName: (name: string) => void
   supported: boolean
+  /** Cita del contenido a resaltar en la lección mientras el tutor habla. */
+  highlightText: string
+  setHighlightText: (s: string) => void
 }
 
 const VoiceTutorContext = createContext<VoiceTutorContextValue | null>(null)
@@ -81,6 +81,7 @@ export function VoiceTutorProvider({ children }: { children: ReactNode }) {
   const [lessonContent, setLessonContentState] = useState('')
   const [open, setOpen] = useState(false)
   const [voiceName, setVoiceNameState] = useState(loadSavedVoice)
+  const [highlightText, setHighlightText] = useState('')
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   // Las voces cargan async en algunos navegadores; forzar refresh al cambiar.
@@ -120,6 +121,7 @@ export function VoiceTutorProvider({ children }: { children: ReactNode }) {
   return (
     <VoiceTutorContext.Provider value={{
       lessonContent, setLessonContent, open, setOpen, voiceName, setVoiceName, supported,
+      highlightText, setHighlightText,
     }}>
       {children}
     </VoiceTutorContext.Provider>

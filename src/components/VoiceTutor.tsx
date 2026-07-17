@@ -30,10 +30,31 @@ Conduces una conversación oral con el estudiante basándote en el contenido de 
 Reglas:
 - Cuando formules una pregunta, hazla abierta y de respuesta corta.
 - Cuando el estudiante responda, evalúa su comprensión y responde de forma natural.
-- Si la respuesta es correcta, felicita brevemente y haz una pregunta de seguimiento sobre otro punto de la lección o más profundo.
-- Si la respuesta es incorrecta o incompleta, corrige con tono amable en una o dos frases y reformula la pregunta o haz una más sencilla.
-- Sé breve, claro y alentador. Usa lenguaje sencillo.
-- Responde SIEMPRE en español, en texto plano (sin JSON, sin markdown, sin numeración).`
+- Si la respuesta es correcta, felicita brevemente y haz una pregunta de seguimiento.
+- Si la respuesta es incorrecta o incompleta, corrige con tono amable y reformula.
+- Sé CONVERSACIONAL y dinámico: usa frases como "mira, aquí en la lección dice...", "como puedes ver...", "fíjate en este punto...". Referencia visualmente el contenido.
+- Sé breve, claro y alentador. Usa lenguaje sencillo. Responde SIEMPRE en español.
+
+FORMATO DE RESPUESTA (obligatorio, SIEMPRE):
+Debes responder con un objeto JSON válido, sin markdown, sin texto fuera del JSON:
+{
+  "speech": "lo que dirás en voz alta (texto natural en español, conversacional)",
+  "reference": "cita textual EXACTA copiada del contenido de la lección que estás referenciando/mostrando, o null si no aplica (p.ej. cuando solo formulas una pregunta nueva sin referenciar el texto)"
+}`
+
+function parseSpeech(raw: string): { speech: string; reference: string | null } {
+  // Intenta parsear JSON; si no, usa el texto tal cual.
+  const m = raw.match(/\{[\s\S]*\}/)
+  if (m) {
+    try {
+      const o = JSON.parse(m[0])
+      if (typeof o.speech === 'string') {
+        return { speech: o.speech.trim(), reference: typeof o.reference === 'string' ? o.reference.trim() : null }
+      }
+    } catch {}
+  }
+  return { speech: raw.trim(), reference: null }
+}
 
 function speak(text: string, voiceName: string, onEnd?: () => void): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -55,7 +76,7 @@ function speak(text: string, voiceName: string, onEnd?: () => void): void {
 /** Botón flotante + panel lateral deslizable. Se renderiza globalmente. */
 export default function VoiceTutor() {
   const { config, isConfigured, openSettings } = useAgent()
-  const { lessonContent, open, setOpen, voiceName, supported: ttsSupported } = useVoiceTutor()
+  const { lessonContent, open, setOpen, voiceName, supported: ttsSupported, setHighlightText } = useVoiceTutor()
   const sr = useSpeechRecognition('es-ES')
 
   const [mode, setMode] = useState<Mode>('idle')
@@ -149,7 +170,8 @@ export default function VoiceTutor() {
     sr.stop()
     setMode('idle')
     setModelLoad(null)
-  }, [sr, ttsSupported])
+    setHighlightText('')
+  }, [sr, ttsSupported, setHighlightText])
 
   // Al cerrar el panel: detener todo en marcha.
   useEffect(() => {
@@ -198,22 +220,29 @@ export default function VoiceTutor() {
     abortRef.current?.abort()
     abortRef.current = new AbortController()
     try {
-      const reply = (await completeLLM(
+      const raw = (await completeLLM(
         configRef.current, messages, abortRef.current.signal,
         (p) => setModelLoad(p.progress >= 1 ? null : p)
-      )).trim().replace(/^["“'"']+|["”'"']+$/g, '')
+      )).trim()
 
       if (stoppingRef.current) return
-      chatRef.current = [...chatRef.current, { role: 'tutor', text: reply }]
+      const { speech, reference } = parseSpeech(raw)
+      const text = speech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
+
+      // Resaltar la parte de la lección a la que hace referencia el tutor
+      setHighlightText(reference && reference.length > 8 ? reference : '')
+
+      chatRef.current = [...chatRef.current, { role: 'tutor', text }]
       setChat([...chatRef.current])
       setMode('speaking')
-      speak(reply, voiceNameRef.current, () => {
+      speak(text, voiceNameRef.current, () => {
         if (!stoppingRef.current) setMode('listening')
       })
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         setError(e.message ?? 'Error al procesar la respuesta')
         setMode('idle')
+        setHighlightText('')
       }
     }
   }, [sr, ttsSupported])

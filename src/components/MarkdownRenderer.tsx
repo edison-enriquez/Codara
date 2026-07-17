@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useRef, useEffect } from 'react'
 import InteractiveCode from './InteractiveCode'
 import { highlightCode } from '../utils/highlight'
 import type { Segment } from '../types'
@@ -7,20 +8,62 @@ import { segmentMarkdown } from '../utils/courseLoader'
 
 interface Props {
   content: string
+  /** Cita del contenido a resaltar (subcadena a buscar en segmentos de prosa). */
+  highlight?: string
 }
 
-export default function MarkdownRenderer({ content }: Props) {
+/** Normaliza texto para comparación difusa (sin tildes, minúsculas, sin signos). */
+function normalize(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/** ¿El segmento de prosa contiene la cita (comparación difusa)? */
+function proseMatches(segContent: string, ref: string): boolean {
+  if (!ref || ref.length < 8) return false
+  const a = normalize(segContent)
+  const b = normalize(ref)
+  if (!a || !b) return false
+  if (a.includes(b)) return true
+  if (b.includes(a.slice(0, 60))) return true
+  // Coincidencia de palabras clave (>= 6 palabras comunes)
+  const aw = new Set(a.split(' ').filter((w) => w.length > 3))
+  const bw = b.split(' ').filter((w) => w.length > 3)
+  let hits = 0
+  for (const w of bw) if (aw.has(w)) hits++
+  return hits >= 5 && hits / bw.length >= 0.5
+}
+
+export default function MarkdownRenderer({ content, highlight }: Props) {
   const segments = segmentMarkdown(content)
+  const activeIdx = highlight
+    ? segments.findIndex((s) => s.type === 'prose' && proseMatches(s.content, highlight))
+    : -1
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (activeIdx < 0) return
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-chunk="${activeIdx}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [activeIdx])
 
   return (
-    <div className="lesson-prose">
+    <div className="lesson-prose" ref={scrollRef}>
       {segments.map((seg, idx) => {
+        const isActive = idx === activeIdx
         switch (seg.type) {
           case 'prose':
             return (
-              <ReactMarkdown key={idx} remarkPlugins={[remarkGfm]} components={mdComponents}>
-                {seg.content}
-              </ReactMarkdown>
+              <div
+                key={idx}
+                data-chunk={idx}
+                className={`rounded-lg transition-all duration-500 ${
+                  isActive ? 'bg-purple/10 ring-1 ring-purple/40 px-3 py-2 -mx-3' : ''
+                }`}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                  {seg.content}
+                </ReactMarkdown>
+              </div>
             )
           case 'exec':
             return <InteractiveCode key={idx} lang={seg.lang} code={seg.content} executable />

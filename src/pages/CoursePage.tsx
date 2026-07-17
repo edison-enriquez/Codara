@@ -11,7 +11,7 @@ import CourseIndex from '../components/CourseIndex'
 export default function CoursePage() {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId?: string }>()
   const { course, loading: courseLoading } = useCourseData(courseId)
-  const { setLessonContent } = useVoiceTutor()
+  const { setLessonContent, highlightText } = useVoiceTutor()
 
   const currentLessonMeta = course?.lessons.find((l) => l.id === lessonId)
   const { lesson, loading: lessonLoading } = useLesson(courseId, currentLessonMeta?.file)
@@ -102,7 +102,7 @@ export default function CoursePage() {
                   </div>
                   <h1 className="text-xl font-bold text-text">{lesson.meta.title}</h1>
                 </div>
-                <MarkdownRenderer content={lesson.displayContent} />
+                <MarkdownRenderer content={lesson.displayContent} highlight={highlightText} />
               </div>
             )}
           </div>
