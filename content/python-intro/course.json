@@ -5,7 +5,7 @@
   "difficulty": "beginner",
   "language": "python",
   "category": "Data & Scripts",
-  "icon": "🐍",
+  "icon": "Terminal",
   "estimatedTime": "2 horas",
   "tags": ["Python", "funciones", "listas", "Pyodide"],
   "notebook": true,

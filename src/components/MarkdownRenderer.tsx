@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { useRef, useEffect, useMemo, Fragment, type ReactNode } from 'react'
+import rehypeRaw from 'rehype-raw'
+import { useRef, useEffect, useMemo } from 'react'
 import InteractiveCode from './InteractiveCode'
 import { highlightCode } from '../utils/highlight'
 import type { Segment } from '../types'
@@ -90,19 +91,18 @@ function findMarkRanges(segContent: string, marks: TutorMark[]): Range[] {
   return filtered
 }
 
-/** Inserta marcas ==HL==/==UL== en el markdown para que los componentes las transformen. */
+/** Inserta marcas HTML <mark>/<u> en el markdown para que rehypeRaw las renderice. */
 function insertMarks(markdown: string, ranges: Range[]): string {
   if (!ranges.length) return markdown
-  // Insertar de atrás hacia adelante para no desplazar índices
   const sorted = [...ranges].sort((a, b) => b.start - a.start)
   let result = markdown
   for (const r of sorted) {
     const before = result.slice(0, r.start)
     const hit = result.slice(r.start, r.end)
     const after = result.slice(r.end)
-    const tag = r.style === 'underline' ? '==UL==' : '==HL=='
-    const endTag = r.style === 'underline' ? '==/UL==' : '==/HL=='
-    result = `${before}${tag}${hit}${endTag}${after}`
+    result = r.style === 'underline'
+      ? `${before}<u>${hit}</u>${after}`
+      : `${before}<mark>${hit}</mark>${after}`
   }
   return result
 }
@@ -147,7 +147,7 @@ export default function MarkdownRenderer({ content, marks }: Props) {
                   isActive ? 'bg-yellow/5 px-3 py-2 -mx-3' : ''
                 }`}
               >
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={isActive ? hlComponents : mdComponents}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={isActive ? hlComponents : mdComponents}>
                   {proseWithMarks}
                 </ReactMarkdown>
               </div>
@@ -285,72 +285,32 @@ const mdComponents = {
   ),
 }
 
-// ─── Resaltado de texto (==HL==/==UL== → <mark>/<u> estilizados) ────────────
-
-/** Recursivamente reemplaza las marcas ==HL==.../==HL== y ==UL==.../==UL==. */
-function replaceMarksInNode(node: ReactNode): ReactNode {
-  if (typeof node === 'string') {
-    const parts: ReactNode[] = []
-    let cursor = 0
-    let key = 0
-    // Patrón global para ambos tipos de marca
-    const re = /==HL==(.*?)==\/HL==|==UL==(.*?)==\/UL==/g
-    let m: RegExpExecArray | null
-    while ((m = re.exec(node)) !== null) {
-      if (m.index > cursor) parts.push(node.slice(cursor, m.index))
-      const isHL = m[1] !== undefined
-      const hit = isHL ? m[1] : m[2]
-      if (isHL) {
-        parts.push(
-          <mark
-            key={key++}
-            className="rounded-sm px-0.5 transition-all duration-700"
-            style={{
-              background: 'rgba(255, 224, 102, 0.5)',
-              color: 'inherit',
-              boxShadow: '0 0 0 1px rgba(255, 224, 102, 0.55)',
-            }}
-          >
-            {hit}
-          </mark>
-        )
-      } else {
-        parts.push(
-          <span
-            key={key++}
-            className="transition-all duration-700"
-            style={{
-              borderBottom: '2px solid rgba(204, 153, 255, 0.9)',
-              textDecoration: 'none',
-              paddingBottom: '1px',
-            }}
-          >
-            {hit}
-          </span>
-        )
-      }
-      cursor = m.index + m[0].length
-    }
-    if (parts.length === 0) return node
-    if (cursor < node.length) parts.push(node.slice(cursor))
-    return <>{parts}</>
-  }
-  if (Array.isArray(node)) return node.map((c, idx) => <Fragment key={idx}>{replaceMarksInNode(c)}</Fragment>)
-  return node
-}
-
-/** Wrapper para <p> que inyecta las marcas dentro de los textos hijos. */
-function HighlightedP({ children }: { children?: ReactNode }) {
-  return <p className="mb-4 leading-7 text-text/85">{replaceMarksInNode(children)}</p>
-}
-
-/** Wrapper para <li> que soporta las marcas. */
-function HighlightedLi({ children }: { children?: ReactNode }) {
-  return <li className="leading-7">{replaceMarksInNode(children)}</li>
-}
+// ─── Resaltado de texto (<mark>/<u> insertados por insertMarks) ──────────────
 
 const hlComponents = {
   ...mdComponents,
-  p: HighlightedP,
-  li: HighlightedLi,
+  mark: ({ children }: React.PropsWithChildren) => (
+    <mark
+      className="rounded-sm px-0.5 transition-all duration-700"
+      style={{
+        background: 'rgba(255, 224, 102, 0.5)',
+        color: 'inherit',
+        boxShadow: '0 0 0 1px rgba(255, 224, 102, 0.55)',
+      }}
+    >
+      {children}
+    </mark>
+  ),
+  u: ({ children }: React.PropsWithChildren) => (
+    <span
+      className="transition-all duration-700"
+      style={{
+        borderBottom: '2px solid rgba(204, 153, 255, 0.9)',
+        textDecoration: 'none',
+        paddingBottom: '1px',
+      }}
+    >
+      {children}
+    </span>
+  ),
 }

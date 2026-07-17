@@ -5,7 +5,7 @@
   "difficulty": "beginner",
   "language": "javascript",
   "category": "Frontend",
-  "icon": "🟨",
+  "icon": "FileJson",
   "estimatedTime": "2.5 horas",
   "tags": ["JavaScript", "funciones", "arrays", "ES6"],
   "lessons": [

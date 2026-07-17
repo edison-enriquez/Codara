@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, CheckCircle2, Circle, BookOpen, FlaskConical, ChevronLeft, Play, Users, X } from 'lucide-react'
+import { Terminal, FileJson, Code2, Search, CheckCircle2, Circle, BookOpen, FlaskConical, ChevronLeft, Play, Users, X, type LucideIcon } from 'lucide-react'
 import { isComplete, cleanTitle } from '../utils/courseLoader'
 import { fetchCounts } from '../utils/passedCounts'
 import type { CourseData, LessonMeta } from '../types'
@@ -12,6 +12,12 @@ const DIFF_BADGE: Record<string, string> = {
   beginner:     'text-green  bg-green/10  border-green/30',
   intermediate: 'text-yellow bg-yellow/10 border-yellow/30',
   advanced:     'text-red    bg-red/10    border-red/30',
+}
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Terminal,
+  FileJson,
+  Code2,
 }
 
 // TODO(usuarios): desbloqueo secuencial / candados por reto. Diferido hasta que
@@ -68,7 +74,12 @@ export default function CourseIndex({ course, courseId }: { course: CourseData; 
         </Link>
 
         <div className="mb-5 flex items-start gap-4">
-          <span className="text-3xl">{course.icon}</span>
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-elevated">
+            {(() => {
+              const Icon = ICON_MAP[course.icon]
+              return Icon ? <Icon size={24} /> : <span className="text-3xl">{course.icon}</span>
+            })()}
+          </span>
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-bold text-text">{course.title}</h1>
             <p className="mt-1 text-sm text-muted">{course.description}</p>

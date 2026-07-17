@@ -53,7 +53,7 @@ Responde con un objeto JSON válido, sin markdown, sin texto fuera del JSON:
 }
 - "marks" puede ser un array vacío [] si no hay nada que marcar.
 - "style" solo puede ser "highlight" o "underline".
-- NUNCA uses etiquetas como ==UL==...==/UL== ni ==HL==...==/HL== en el campo "speech". El resaltado se hace ÚNICAMENTE mediante el array "marks". Si pones esas etiquetas en "speech", el estudiante las verá escritas literalmente en el chat y no se resaltará nada.
+- NUNCA uses etiquetas como ==UL==...==/UL==, ==HL==...==/HL==, &lt;mark&gt;, &lt;u&gt;, ni ningún otro marcador en el campo "speech". El resaltado se hace ÚNICAMENTE mediante el array "marks". Si pones esas etiquetas en "speech", el estudiante las verá escritas literalmente en el chat y no se resaltará nada.
 - Para verificar que tus marcas son correctas: el texto en "marks" debe aparecer EXACTAMENTE IGUAL en el contenido de la lección (mismas palabras, mismo orden). Si no estás seguro, usa "marks": [].`
 
 interface Mark {
@@ -83,24 +83,30 @@ function parseSpeech(raw: string): { speech: string; marks: Mark[] } {
   return { speech: raw.trim(), marks: [] }
 }
 
-/** Extrae marcas que el agente puso directamente en el speech con sintaxis
- *  ==HL==...==/HL== o ==UL==...==/UL==, las elimina del texto y las convierte
- *  a objetos Mark. Esto permite tolerar que el agente se equivoque de formato. */
+/** Extrae marcas que el agente puso directamente en el speech (tanto formato
+ *  ==HL==...==/HL== como <mark>...</mark> / <u>...</u>), las elimina del texto
+ *  y las convierte a objetos Mark. */
 function extractMarksFromSpeech(speech: string, existingMarks: Mark[]): { cleanSpeech: string; allMarks: Mark[] } {
-  const tagRe = /==(HL|UL)==(.*?)==\/\1==/g
   let clean = speech
   const extracted: Mark[] = []
+  // formato ==HL== / ==UL==
+  const legacyRe = /==(HL|UL)==(.*?)==\/\1==/g
   let match: RegExpExecArray | null
-  while ((match = tagRe.exec(speech)) !== null) {
+  while ((match = legacyRe.exec(speech)) !== null) {
     const style = match[1] === 'HL' ? 'highlight' as const : 'underline' as const
     const text = match[2].trim()
-    if (text.length >= 2) {
-      extracted.push({ text, style })
-    }
+    if (text.length >= 2) extracted.push({ text, style })
   }
+  clean = clean.replace(legacyRe, '$2').trim()
+  // formato HTML <mark> / <u>
+  const htmlRe = /<(mark|u)>(.*?)<\/\1>/g
+  while ((match = htmlRe.exec(speech)) !== null) {
+    const style = match[1] === 'mark' ? 'highlight' as const : 'underline' as const
+    const text = match[2].trim()
+    if (text.length >= 2) extracted.push({ text, style })
+  }
+  clean = clean.replace(htmlRe, '$2').trim()
   if (extracted.length === 0) return { cleanSpeech: speech, allMarks: existingMarks }
-  clean = speech.replace(tagRe, '$2').trim()
-  // Fusionar, evitando duplicados
   const texts = new Set(existingMarks.map(m => m.text + m.style))
   for (const m of extracted) {
     if (!texts.has(m.text + m.style)) existingMarks.push(m)
@@ -108,27 +114,33 @@ function extractMarksFromSpeech(speech: string, existingMarks: Mark[]): { cleanS
   return { cleanSpeech: clean, allMarks: existingMarks }
 }
 
-/** Renderiza texto convirtiendo ==HL==...==/HL== y ==UL==...==/UL==
- *  en elementos <mark> y <span> con estilo. Usado en burbujas de chat
- *  para que el subrayado/resaltado se vea aunque el agente use ese formato. */
+/** Renderiza texto convirtiendo ==HL==...==/HL==, <mark>...</mark> y
+ *  <u>...</u> en elementos con estilo visual. Usado en burbujas de chat
+ *  para que subrayado/resaltado se vea aunque el agente use ese formato. */
 function renderChatText(text: string): ReactNode {
-  const tagRe = /==(HL|UL)==(.*?)==\/\1==/g
-  const parts: React.ReactNode[] = []
+  // unificar ambos formatos a marcadores simples
+  let unified = text
+    .replace(/==HL==(.*?)==\/HL==/g, '\x00HL\x00$1\x00/HL\x00')
+    .replace(/==UL==(.*?)==\/UL==/g, '\x00UL\x00$1\x00/UL\x00')
+    .replace(/<mark>(.*?)<\/mark>/g, '\x00HL\x00$1\x00/HL\x00')
+    .replace(/<u>(.*?)<\/u>/g, '\x00UL\x00$1\x00/UL\x00')
+  const parts: ReactNode[] = []
+  const splitRe = /\x00(HL|UL)\x00(.*?)\x00\/(HL|UL)\x00/g
   let cursor = 0
   let key = 0
-  let match: RegExpExecArray | null
-  while ((match = tagRe.exec(text)) !== null) {
-    if (match.index > cursor) parts.push(text.slice(cursor, match.index))
-    const isHL = match[1] === 'HL'
-    const content = match[2]
+  let m: RegExpExecArray | null
+  while ((m = splitRe.exec(unified)) !== null) {
+    if (m.index > cursor) parts.push(unified.slice(cursor, m.index))
+    const isHL = m[1] === 'HL'
+    const content = m[2]
     if (isHL) {
       parts.push(<mark key={key++} className="rounded-sm px-0.5" style={{ background: 'rgba(255, 224, 102, 0.5)', color: 'inherit' }}>{content}</mark>)
     } else {
       parts.push(<span key={key++} style={{ borderBottom: '2px solid rgba(204, 153, 255, 0.9)', textDecoration: 'none', paddingBottom: '1px' }}>{content}</span>)
     }
-    cursor = match.index + match[0].length
+    cursor = m.index + m[0].length
   }
-  if (cursor < text.length) parts.push(text.slice(cursor))
+  if (cursor < unified.length) parts.push(unified.slice(cursor))
   return parts.length > 0 ? <>{parts}</> : text
 }
 

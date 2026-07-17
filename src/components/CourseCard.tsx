@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom'
-import { FlaskConical, BookOpen, Clock, ArrowRight } from 'lucide-react'
+import { Terminal, FileJson, Code2, FlaskConical, BookOpen, Clock, ArrowRight, type LucideIcon } from 'lucide-react'
 import type { CourseSummary } from '../types'
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Terminal,
+  FileJson,
+  Code2,
+}
 
 const DIFFICULTY_STYLE: Record<string, string> = {
   beginner:     'text-green  border-green/40  bg-green/10',
@@ -39,8 +45,11 @@ export default function CourseCard({ course, completedCount = 0, index = 0, vari
         className="group flex h-full flex-col gap-3 rounded-lg border border-border bg-surface p-4 transition-colors hover:border-green/40"
       >
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded border border-border bg-elevated text-xl">
-            {course.icon}
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded border border-border bg-elevated">
+            {(() => {
+              const Icon = ICON_MAP[course.icon]
+              return Icon ? <Icon size={20} /> : <span className="text-xl">{course.icon}</span>
+            })()}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate font-bold text-text group-hover:text-green transition-colors">{course.title}</p>
@@ -88,8 +97,11 @@ export default function CourseCard({ course, completedCount = 0, index = 0, vari
       className="group flex items-center gap-4 border-b border-border px-4 py-4 transition-colors hover:bg-surface"
     >
       {/* Icon */}
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded border border-border bg-elevated text-xl">
-        {course.icon}
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded border border-border bg-elevated">
+        {(() => {
+          const Icon = ICON_MAP[course.icon]
+          return Icon ? <Icon size={20} /> : <span className="text-xl">{course.icon}</span>
+        })()}
       </div>
 
       {/* Main info */}
