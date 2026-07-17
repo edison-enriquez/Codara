@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import type * as THREE from 'three'
 
 type OrbMode = 'idle' | 'listening' | 'thinking' | 'speaking'
 
@@ -7,14 +6,13 @@ interface Props {
   mode: OrbMode
   level?: number
   size?: number
+  particleCount?: number
 }
 
-interface RGB { r: number; g: number; b: number }
-
-function parseCSS(key: string): RGB {
+function parseCSS(key: string) {
   const raw = getComputedStyle(document.documentElement).getPropertyValue(key).trim()
   const parts = raw.split(/\s+/).map(Number)
-  return parts.length === 3 ? { r: parts[0], g: parts[1], b: parts[2] } : { r: 255, g: 255, b: 255 }
+  return parts.length === 3 ? parts : [255, 255, 255]
 }
 
 function getThemeColors() {
@@ -27,221 +25,288 @@ function getThemeColors() {
   }
 }
 
-export default function VoiceOrbThree({ mode, level = 0, size = 220 }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+export default function VoiceOrbThree({ mode, level = 0, size = 220, particleCount = 6000 }: Props) {
+  const mountRef = useRef<HTMLDivElement>(null)
   const modeRef = useRef(mode)
   const levelRef = useRef(level)
-  const audioLevelRef = useRef(0)
+  const audioEnergyRef = useRef(0)
+  const audioBassRef = useRef(0)
 
   modeRef.current = mode
   levelRef.current = level
 
+  // ── Three.js scene (GPU particle shader) ────────────────────────────
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const container = mountRef.current
+    if (!container) return
 
     let disposed = false
-    let animId = 0
+    let rafId = 0
     let rendererDispose: (() => void) | null = null
 
     const init = async () => {
       const THREE = await import('three')
+      const R = size * 0.32
+      const n = particleCount
 
       const scene = new THREE.Scene()
-      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100)
-      camera.position.z = 4
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000)
+      camera.position.set(0, 0, R * 3.6)
 
-      const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
       renderer.setSize(size, size)
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+      container.innerHTML = ''
+      container.appendChild(renderer.domElement)
 
-      const ambient = new THREE.AmbientLight(0xffffff, 0.4)
-      scene.add(ambient)
+      // ── Fibonacci sphere distribution ──────────────────────────────
+      const dirs = new Float32Array(n * 3)
+      const baseRadius = new Float32Array(n)
+      const flare = new Float32Array(n)
+      const phase = new Float32Array(n)
+      const colorAttr = new Float32Array(n * 3)
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5))
 
-      const key = new THREE.DirectionalLight(0xffffff, 1.2)
-      key.position.set(2, 3, 4)
-      scene.add(key)
-
-      const fill = new THREE.DirectionalLight(0x8888ff, 0.5)
-      fill.position.set(-3, -1, -2)
-      scene.add(fill)
-
-      // ── Orb ─────────────────────────────────────────────────
-      const geo = new THREE.IcosahedronGeometry(1.2, 3)
-      const pos = geo.attributes.position
-      const origPos = new Float32Array(pos.array)
-      const phases = new Float32Array(pos.count)
-      for (let i = 0; i < pos.count; i++) phases[i] = Math.random() * Math.PI * 2
-
-      const mat = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(0.5, 0.8, 0.6),
-        emissive: new THREE.Color(0.1, 0.3, 0.2),
-        emissiveIntensity: 0.3,
-        metalness: 0.1,
-        roughness: 0.3,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.4,
-        transparent: true,
-        opacity: 0.95,
-      })
-      const orb = new THREE.Mesh(geo, mat)
-      scene.add(orb)
-
-      // ── Glow ring ────────────────────────────────────────────
-      const ringGeo = new THREE.TorusGeometry(1.45, 0.03, 16, 64)
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: 0x4488ff, transparent: true, opacity: 0.4,
-      })
-      const ring = new THREE.Mesh(ringGeo, ringMat)
-      ring.rotation.x = Math.PI / 3
-      scene.add(ring)
-
-      // ── Particles ─────────────────────────────────────────────
-      const PC = 300
-      const pGeo = new THREE.BufferGeometry()
-      const pPos = new Float32Array(PC * 3)
-      const pSpeeds = new Float32Array(PC)
-      const pPhases = new Float32Array(PC)
-      for (let i = 0; i < PC; i++) {
-        const theta = Math.random() * Math.PI * 2
-        const phi = Math.acos(2 * Math.random() - 1)
-        const r = 1.6 + Math.random() * 1.2
-        pPos[i * 3] = r * Math.sin(phi) * Math.cos(theta)
-        pPos[i * 3 + 1] = r * Math.cos(phi)
-        pPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta)
-        pSpeeds[i] = 0.3 + Math.random() * 0.7
-        pPhases[i] = Math.random() * Math.PI * 2
+      const colorAt = (tn: number, top: number[], bot: number[]) => {
+        const t = Math.max(0, Math.min(1, tn))
+        return [
+          top[0] + (bot[0] - top[0]) * t,
+          top[1] + (bot[1] - top[1]) * t,
+          top[2] + (bot[2] - top[2]) * t,
+        ]
       }
-      pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3))
 
-      const pC = document.createElement('canvas')
-      pC.width = 32; pC.height = 32
-      const pCtx = pC.getContext('2d')!
-      const g = pCtx.createRadialGradient(16, 16, 0, 16, 16, 16)
-      g.addColorStop(0, 'rgba(255,255,255,1)')
-      g.addColorStop(0.3, 'rgba(255,255,255,0.8)')
-      g.addColorStop(1, 'rgba(255,255,255,0)')
-      pCtx.fillStyle = g
-      pCtx.fillRect(0, 0, 32, 32)
-      const pTex = new THREE.CanvasTexture(pC)
+      const interiorStarChance = 0.03
+      const flareChance = 0.07
 
-      const pMat = new THREE.PointsMaterial({
-        size: 0.04,
-        map: pTex,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        color: 0x8888ff,
-        opacity: 0.6,
-      })
-      const particles = new THREE.Points(pGeo, pMat)
-      scene.add(particles)
+      for (let i = 0; i < n; i++) {
+        const y = 1 - (i / (n - 1)) * 2
+        const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y))
+        const theta = goldenAngle * i
+        dirs[i * 3] = Math.cos(theta) * radiusAtY
+        dirs[i * 3 + 1] = y
+        dirs[i * 3 + 2] = Math.sin(theta) * radiusAtY
 
-      // ── Theme colors ──────────────────────────────────────────
+        const isInterior = Math.random() < interiorStarChance
+        baseRadius[i] = isInterior ? R * (0.15 + Math.random() * 0.6) : R
+        flare[i] = isInterior ? 0 : Math.random() < flareChance ? 0.4 + Math.random() * 0.6 : Math.random() * 0.06
+        phase[i] = Math.random() * Math.PI * 2
+
+        if (isInterior) {
+          colorAttr[i * 3] = 0.9; colorAttr[i * 3 + 1] = 0.97; colorAttr[i * 3 + 2] = 1.0
+        } else {
+          const tNorm = (y + 1) / 2
+          const c = colorAt(tNorm, [0.66, 0.93, 1.0], [1.0, 0.68, 0.15])
+          colorAttr[i * 3] = c[0]; colorAttr[i * 3 + 1] = c[1]; colorAttr[i * 3 + 2] = c[2]
+        }
+      }
+
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3))
+      geometry.setAttribute('aDir', new THREE.BufferAttribute(dirs, 3))
+      geometry.setAttribute('aBaseRadius', new THREE.BufferAttribute(baseRadius, 1))
+      geometry.setAttribute('aFlare', new THREE.BufferAttribute(flare, 1))
+      geometry.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1))
+      geometry.setAttribute('aColor', new THREE.BufferAttribute(colorAttr, 3))
+
+      // ── Theme colors as uniforms ───────────────────────────────────
       let colors = getThemeColors()
 
+      const uniforms = {
+        uTime: { value: 0 },
+        uEnergy: { value: 0.15 },
+        uBass: { value: 0.12 },
+        uMode: { value: 0 },
+        uColorTop: { value: new THREE.Color(0.66, 0.93, 1.0) },
+        uColorBot: { value: new THREE.Color(1.0, 0.68, 0.15) },
+      }
+
+      const material = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms,
+        vertexShader: `
+          attribute vec3 aDir;
+          attribute float aBaseRadius;
+          attribute float aFlare;
+          attribute float aPhase;
+          attribute vec3 aColor;
+          uniform float uTime;
+          uniform float uEnergy;
+          uniform float uBass;
+          uniform float uMode;
+          uniform vec3 uColorTop;
+          uniform vec3 uColorBot;
+          varying vec3 vColor;
+          varying float vAlpha;
+
+          float noise3(vec3 p, float t) {
+            return (sin(p.x * 3.0 + t * 0.9) + sin(p.y * 3.3 - t * 0.7) +
+                    sin(p.z * 3.6 + t * 1.1) + sin((p.x + p.y + p.z) * 2.1 - t * 1.4)) / 4.0;
+          }
+
+          void main() {
+            float n = noise3(aDir, uTime);
+            float bulge = aBaseRadius * (0.025 + uBass * 0.12) * n;
+            float flareWave = max(0.0, sin(uTime * 2.2 + aPhase * 3.0));
+            float flareBoost = aFlare * (0.4 + uEnergy * 1.2) * flareWave;
+            float r = aBaseRadius + bulge + aFlare * aBaseRadius * 0.8 * flareBoost;
+            vec3 pos = aDir * r;
+
+            // Mode-specific displacement
+            float modeDisp = 0.0;
+            if (uMode > 2.5) {
+              // speaking: pulse with energy
+              modeDisp = sin(uTime * 4.0 + aPhase) * uEnergy * 0.08;
+            } else if (uMode > 1.5) {
+              // thinking: quick shimmer
+              modeDisp = sin(uTime * 6.0 + aPhase * 5.0) * 0.06;
+            } else if (uMode > 0.5) {
+              // listening: audio-driven warp
+              modeDisp = sin(uTime * 2.0 + aPhase * 2.0 + n * 3.0) * uEnergy * 0.12;
+            } else {
+              // idle: gentle breathe
+              modeDisp = sin(uTime * 0.8 + aPhase) * 0.03;
+            }
+            pos += aDir * modeDisp * aBaseRadius;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+
+            vec3 viewDir = normalize(mat3(modelViewMatrix) * aDir);
+            float rim = 1.0 - abs(viewDir.z);
+
+            // Twinkle faster in thinking mode
+            float twinkleSpeed = uMode > 1.5 ? 3.5 : 1.4;
+            float twinkle = 0.6 + 0.4 * sin(uTime * (twinkleSpeed + aPhase * 0.3) + aPhase * 3.0);
+
+            vAlpha = clamp(0.3 + rim * 0.75, 0.0, 1.0) * twinkle;
+
+            // Color: blend base gradient with mode theme color
+            float heightT = (aDir.y + 1.0) * 0.5;
+            vec3 gradColor = mix(uColorBot, uColorTop, heightT);
+            float modeInfluence = uMode > 0.5 ? 0.4 : 0.15;
+            vColor = mix(aColor * (0.55 + rim * 0.75), gradColor, modeInfluence);
+            vColor *= (0.55 + rim * 0.75 + uEnergy * 0.5);
+
+            float baseSize = 1.4 + aFlare * 2.2 + uEnergy * 1.2;
+            float modeSize = uMode > 2.5 ? uEnergy * 2.0 : uMode > 1.5 ? 0.8 : 0.0;
+            gl_PointSize = (baseSize + modeSize) * (300.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vColor;
+          varying float vAlpha;
+          void main() {
+            float d = length(gl_PointCoord - vec2(0.5));
+            if (d > 0.5) discard;
+            float edge = smoothstep(0.5, 0.0, d);
+            gl_FragColor = vec4(vColor, edge * vAlpha);
+          }
+        `,
+      })
+
+      const points = new THREE.Points(geometry, material)
+      const group = new THREE.Group()
+      group.add(points)
+      scene.add(group)
+
+      // ── Theme observer ─────────────────────────────────────────────
       const observer = new MutationObserver(() => {
         colors = getThemeColors()
       })
       observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 
-      // ── Resize ─────────────────────────────────────────────────
+      // ── Resize ─────────────────────────────────────────────────────
       const handleResize = () => {
-        const dpr = Math.min(window.devicePixelRatio, 2)
-        renderer.setPixelRatio(dpr)
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
         renderer.setSize(size, size)
       }
       window.addEventListener('resize', handleResize)
 
-      // ── Animation ──────────────────────────────────────────────
+      // ── Animation ──────────────────────────────────────────────────
       const clock = new THREE.Clock()
+
+      const attackRelease = (current: number, target: number, attack: number, release: number) => {
+        const rate = target > current ? attack : release
+        return current + (target - current) * rate
+      }
+
+      let smoothEnergy = 0.15
+      let smoothBass = 0.12
 
       const animate = () => {
         if (disposed) return
-        animId = requestAnimationFrame(animate)
+        rafId = requestAnimationFrame(animate)
 
+        const delta = clock.getDelta()
         const t = clock.getElapsedTime()
         const cm = modeRef.current
         const cl = levelRef.current
-        const audioLvl = audioLevelRef.current
 
-        // Intensity per mode
-        let intensity: number
+        // ── Compute energy / bass from mode ──────────────────────────
+        let rawEnergy: number
+        let rawBass: number
+
         switch (cm) {
-          case 'idle':      intensity = 0.15 + 0.1 * Math.sin(t * 0.5); break
-          case 'listening': intensity = 0.3 + audioLvl * 0.6; break
-          case 'thinking':  intensity = 0.4 + 0.3 * Math.sin(t * 3); break
-          case 'speaking':  intensity = 0.3 + cl * 0.5; break
-        }
-
-        // Vertex displacement
-        const p = geo.attributes.position.array as Float32Array
-        const disp = 0.04 + intensity * 0.08
-        for (let i = 0; i < p.length; i++) {
-          const wave = Math.sin(t * 1.5 + phases[i]) * 0.5 + 0.5
-          p[i] = origPos[i] + (origPos[i] > 0 ? 1 : -1) * wave * disp
-        }
-        geo.attributes.position.needsUpdate = true
-        geo.computeVertexNormals()
-
-        // Rotation
-        if (cm === 'thinking') {
-          orb.rotation.x += 0.015
-          orb.rotation.y += 0.025
-        } else {
-          orb.rotation.y = t * 0.2
-          orb.rotation.x = Math.sin(t * 0.1) * 0.1
-        }
-
-        // Ring
-        ring.rotation.z = t * 0.3
-        ring.rotation.x = Math.PI / 3 + Math.sin(t * 0.2) * 0.1
-
-        // Particles orbit
-        const pp = particles.geometry.attributes.position.array as Float32Array
-        for (let i = 0; i < PC; i++) {
-          const speed = pSpeeds[i]
-          const phase = pPhases[i]
-          const theta = t * 0.15 * speed + phase
-          const phi = Math.acos(2 * ((i / PC + Math.sin(t * 0.1 + phase) * 0.1) % 1 - 1))
-          const r = 1.6 + Math.random() * 1.2
-          pp[i * 3] = r * Math.sin(phi) * Math.cos(theta)
-          pp[i * 3 + 1] = r * Math.cos(phi)
-          pp[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta)
-        }
-        particles.geometry.attributes.position.needsUpdate = true
-
-        // Color transition
-        const target = (() => {
-          switch (cm) {
-            case 'speaking':  return colors.speaking
-            case 'listening': return colors.listening
-            case 'thinking':  return colors.thinking
-            case 'idle':      return colors.idle
+          case 'listening': {
+            const ae = audioEnergyRef.current
+            const ab = audioBassRef.current
+            rawEnergy = ae
+            rawBass = ab
+            break
           }
-        })()
-        const s = 0.05
-        const orbC = mat.color as THREE.Color
-        orbC.r += (target.r / 255 - orbC.r) * s
-        orbC.g += (target.g / 255 - orbC.g) * s
-        orbC.b += (target.b / 255 - orbC.b) * s
-        mat.emissiveIntensity = 0.2 + intensity * 0.4
-        mat.emissive.copy(mat.color).multiplyScalar(0.3)
+          case 'speaking': {
+            rawEnergy = 0.2 + cl * 0.7
+            rawBass = 0.15 + cl * 0.4
+            break
+          }
+          case 'thinking': {
+            rawEnergy = 0.25 + 0.2 * Math.sin(t * 2.5)
+            rawBass = 0.2 + 0.15 * Math.sin(t * 3.7)
+            break
+          }
+          default: {
+            rawEnergy = 0.12 + 0.06 * Math.sin(t * 0.5)
+            rawBass = 0.1 + 0.04 * Math.sin(t * 0.7)
+            break
+          }
+        }
 
-        const ringC = ringMat.color as THREE.Color
-        ringC.r += (target.r / 255 - ringC.r) * s
-        ringC.g += (target.g / 255 - ringC.g) * s
-        ringC.b += (target.b / 255 - ringC.b) * s
-        ringMat.opacity = 0.2 + intensity * 0.4
+        smoothEnergy = attackRelease(smoothEnergy, rawEnergy, 0.3, 0.08)
+        smoothBass = attackRelease(smoothBass, rawBass, 0.28, 0.1)
 
-        const pC = pMat.color as THREE.Color
-        pC.r += (target.r / 255 - pC.r) * s
-        pC.g += (target.g / 255 - pC.g) * s
-        pC.b += (target.b / 255 - pC.b) * s
-        pMat.opacity = 0.3 + intensity * 0.4
+        // ── Map mode to float uniform ────────────────────────────────
+        const modeMap: Record<OrbMode, number> = { idle: 0, listening: 1, thinking: 2, speaking: 3 }
 
-        // Scale pulse
-        orb.scale.setScalar(1 + intensity * 0.05)
+        // ── Update uniforms ──────────────────────────────────────────
+        uniforms.uTime.value = t
+        uniforms.uEnergy.value = smoothEnergy
+        uniforms.uBass.value = smoothBass
+        uniforms.uMode.value = modeMap[cm]
+
+        // ── Theme → color uniforms ───────────────────────────────────
+        const theme = colors
+        const modeKey = cm as keyof typeof theme
+        const modeRgb = theme[modeKey] ?? theme.idle
+        const bright = [
+          Math.min(1, modeRgb[0] / 255 * 1.3),
+          Math.min(1, modeRgb[1] / 255 * 1.3),
+          Math.min(1, modeRgb[2] / 255 * 1.3),
+        ]
+        const dim = [
+          modeRgb[0] / 255 * 0.4,
+          modeRgb[1] / 255 * 0.35,
+          modeRgb[2] / 255 * 0.5,
+        ]
+        uniforms.uColorTop.value.setRGB(bright[0], bright[1], bright[2])
+        uniforms.uColorBot.value.setRGB(dim[0], dim[1], dim[2])
+
+        // ── Rotation ─────────────────────────────────────────────────
+        const rotSpeed = cm === 'thinking' ? 0.6 : 0.08 + smoothEnergy * 0.35
+        group.rotation.y += delta * rotSpeed
+        group.rotation.x = 0.12 + Math.sin(t * 0.15) * 0.03
 
         renderer.render(scene, camera)
       }
@@ -249,34 +314,31 @@ export default function VoiceOrbThree({ mode, level = 0, size = 220 }: Props) {
 
       rendererDispose = () => {
         disposed = true
-        cancelAnimationFrame(animId)
+        cancelAnimationFrame(rafId)
         observer.disconnect()
         window.removeEventListener('resize', handleResize)
-        geo.dispose()
-        mat.dispose()
-        ringGeo.dispose()
-        ringMat.dispose()
-        pGeo.dispose()
-        pMat.dispose()
-        pTex.dispose()
+        geometry.dispose()
+        material.dispose()
         renderer.dispose()
+        container.innerHTML = ''
       }
     }
 
     init().catch(console.error)
 
     return () => rendererDispose?.()
-  }, [size])
+  }, [size, particleCount])
 
   // ── Audio lifecycle (mic for listening mode) ────────────────────────
   useEffect(() => {
     let alive = true
     let mediaStream: MediaStream | null = null
     let audioCtx: AudioContext | null = null
-    let audioAnimId = 0
+    let audioRaf = 0
 
     if (mode !== 'listening') {
-      audioLevelRef.current = 0
+      audioEnergyRef.current = 0
+      audioBassRef.current = 0
       return
     }
 
@@ -288,7 +350,8 @@ export default function VoiceOrbThree({ mode, level = 0, size = 220 }: Props) {
 
         const src = ctx.createMediaStreamSource(stream)
         const an = ctx.createAnalyser()
-        an.fftSize = 64
+        an.fftSize = 256
+        an.smoothingTimeConstant = 0.7
         src.connect(an)
         const data = new Uint8Array(an.frequencyBinCount)
 
@@ -296,34 +359,40 @@ export default function VoiceOrbThree({ mode, level = 0, size = 220 }: Props) {
           if (!alive) return
           an.getByteFrequencyData(data)
           let sum = 0
-          for (let i = 0; i < data.length; i++) sum += data[i]
-          audioLevelRef.current = sum / (data.length * 255)
-          audioAnimId = requestAnimationFrame(read)
+          let bassSum = 0
+          const bassBins = Math.max(4, Math.floor(data.length * 0.1))
+          for (let i = 0; i < data.length; i++) {
+            sum += data[i]
+            if (i < bassBins) bassSum += data[i]
+          }
+          audioEnergyRef.current = sum / data.length / 255
+          audioBassRef.current = bassSum / bassBins / 255
+          audioRaf = requestAnimationFrame(read)
         }
         read()
 
         mediaStream = stream
         audioCtx = ctx
       } catch {
-        audioLevelRef.current = 0
+        audioEnergyRef.current = 0
+        audioBassRef.current = 0
       }
     })()
 
     return () => {
       alive = false
-      cancelAnimationFrame(audioAnimId)
+      cancelAnimationFrame(audioRaf)
       if (mediaStream) mediaStream.getTracks().forEach(t => t.stop())
       if (audioCtx) audioCtx.close()
-      audioLevelRef.current = 0
+      audioEnergyRef.current = 0
+      audioBassRef.current = 0
     }
   }, [mode])
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={size}
-      height={size}
-      style={{ width: size, height: size, display: 'block', borderRadius: '50%' }}
+    <div
+      ref={mountRef}
+      style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden' }}
     />
   )
 }
