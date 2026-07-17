@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
+import { useState, useRef, useCallback, useEffect, lazy, Suspense, type ReactNode } from 'react'
 import {
   Mic, Loader2, X, Headphones, Send,
 } from 'lucide-react'
@@ -106,6 +106,30 @@ function extractMarksFromSpeech(speech: string, existingMarks: Mark[]): { cleanS
     if (!texts.has(m.text + m.style)) existingMarks.push(m)
   }
   return { cleanSpeech: clean, allMarks: existingMarks }
+}
+
+/** Renderiza texto convirtiendo ==HL==...==/HL== y ==UL==...==/UL==
+ *  en elementos <mark> y <span> con estilo. Usado en burbujas de chat
+ *  para que el subrayado/resaltado se vea aunque el agente use ese formato. */
+function renderChatText(text: string): ReactNode {
+  const tagRe = /==(HL|UL)==(.*?)==\/\1==/g
+  const parts: React.ReactNode[] = []
+  let cursor = 0
+  let key = 0
+  let match: RegExpExecArray | null
+  while ((match = tagRe.exec(text)) !== null) {
+    if (match.index > cursor) parts.push(text.slice(cursor, match.index))
+    const isHL = match[1] === 'HL'
+    const content = match[2]
+    if (isHL) {
+      parts.push(<mark key={key++} className="rounded-sm px-0.5" style={{ background: 'rgba(255, 224, 102, 0.5)', color: 'inherit' }}>{content}</mark>)
+    } else {
+      parts.push(<span key={key++} style={{ borderBottom: '2px solid rgba(204, 153, 255, 0.9)', textDecoration: 'none', paddingBottom: '1px' }}>{content}</span>)
+    }
+    cursor = match.index + match[0].length
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts.length > 0 ? <>{parts}</> : text
 }
 
 function norm(s: string): string {
@@ -509,7 +533,9 @@ setMarks([])
                       }`}>
                         {turn.role === 'tutor' ? 'Tutor' : 'Tú'}
                       </p>
-                      <p className="text-sm leading-6 text-text/90">{turn.text}</p>
+                      <p className="text-sm leading-6 text-text/90">
+                        {renderChatText(turn.text)}
+                      </p>
                     </div>
                   ))}
                 </div>
