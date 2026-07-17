@@ -236,7 +236,12 @@ export default function VoiceTutor() {
       setChat([...chatRef.current])
       setMode('speaking')
       speak(text, voiceNameRef.current, () => {
-        if (!stoppingRef.current) setMode('listening')
+        if (!stoppingRef.current) {
+          setMode('listening')
+          sr.clearEnded()
+          sr.reset()
+          setTimeout(() => sr.start(), 80)
+        }
       })
     } catch (e: any) {
       if (e.name !== 'AbortError') {
