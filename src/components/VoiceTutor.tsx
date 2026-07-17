@@ -35,46 +35,69 @@ Reglas:
 - Sé CONVERSACIONAL y dinámico: usa frases como "mira, aquí en la lección dice...", "como puedes ver...", "fíjate en este punto...". Referencia visualmente el contenido.
 - Sé breve, claro y alentador. Usa lenguaje sencillo. Responde SIEMPRE en español.
 
-FORMATO DE RESPUESTA (obligatorio, SIEMPRE):
-Debes responder con un objeto JSON válido, sin markdown, sin texto fuera del JSON:
-{
-  "speech": "lo que dirás en voz alta (texto natural en español, conversacional)",
-  "reference": "cita textual EXACTA copiada del contenido de la lección que estás referenciando/mostrando, o null si no aplica (p.ej. cuando solo formulas una pregunta nueva sin referenciar el texto)"
-}`
+Puedes RESALTAR partes específicas del contenido de la lección para guiar al estudiante:
+- Usa "highlight" (resaltador amarillo) para frases o definiciones importantes que quieras mostrar.
+- Usa "underline" (subrayado) para palabras clave, términos técnicos o conceptos que quieras enfatizar.
+- Puedes marcar varias partes a la vez (varias entradas en el array "marks").
+- Las marcas deben ser citas EXACTAS (copiadas tal cual) del contenido de la lección.
 
-function parseSpeech(raw: string): { speech: string; reference: string | null } {
+FORMATO DE RESPUESTA (obligatorio, SIEMPRE):
+Responde con un objeto JSON válido, sin markdown, sin texto fuera del JSON:
+{
+  "speech": "lo que dirás en voz alta (texto natural, conversacional)",
+  "marks": [
+    { "text": "cita exacta del contenido a resaltar con marcador", "style": "highlight" },
+    { "text": "palabra clave a subrayar", "style": "underline" }
+  ]
+}
+- "marks" puede ser un array vacío [] si no hay nada que marcar.
+- "style" solo puede ser "highlight" o "underline".`
+
+interface Mark {
+  text: string
+  style: 'highlight' | 'underline'
+}
+
+function parseSpeech(raw: string): { speech: string; marks: Mark[] } {
   const m = raw.match(/\{[\s\S]*\}/)
   if (m) {
     try {
       const o = JSON.parse(m[0])
       if (typeof o.speech === 'string') {
-        return { speech: o.speech.trim(), reference: typeof o.reference === 'string' ? o.reference.trim() : null }
+        let marks: Mark[] = []
+        if (Array.isArray(o.marks)) {
+          marks = o.marks
+            .filter((mk: any) => typeof mk?.text === 'string' && (mk?.style === 'highlight' || mk?.style === 'underline'))
+            .map((mk: any) => ({ text: mk.text.trim(), style: mk.style as 'highlight' | 'underline' }))
+        } else if (typeof o.reference === 'string') {
+          // retrocompatibilidad: reference única → highlight
+          marks = [{ text: o.reference.trim(), style: 'highlight' as const }]
+        }
+        return { speech: o.speech.trim(), marks }
       }
     } catch {}
   }
-  return { speech: raw.trim(), reference: null }
+  return { speech: raw.trim(), marks: [] }
 }
 
-/** Normaliza texto para comparación difusa (sin tildes, minúsculas, sin signos). */
 function norm(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-/** ¿La cita (reference) del LLM aparece realmente en el contenido de la lección? */
-function referenceIsValid(ref: string, lessonContent: string): boolean {
-  if (!ref || ref.length < 8) return true // null/corta ⇒ no se valida, se acepta
-  const refN = norm(ref)
+/** ¿La cita (mark) del LLM aparece realmente en el contenido de la lección? */
+function markIsValid(markText: string, lessonContent: string): boolean {
+  if (!markText || markText.length < 4) return true
+  const refN = norm(markText)
   const chunks = extractReadableChunks(lessonContent)
   for (const ch of chunks) {
     const cN = norm(ch)
     if (cN.includes(refN)) return true
-    // Coincidencia de palabras clave (>= 60% de palabras comunes)
     const refWords = refN.split(' ').filter((w) => w.length > 3)
     if (!refWords.length) continue
     const chunkWords = new Set(cN.split(' ').filter((w) => w.length > 3))
     let hits = 0
     for (const w of refWords) if (chunkWords.has(w)) hits++
-    if (hits / refWords.length >= 0.6 && hits >= 4) return true
+    if (hits / refWords.length >= 0.6 && hits >= 2) return true
   }
   return false
 }
@@ -99,7 +122,7 @@ function speak(text: string, voiceName: string, onEnd?: () => void): void {
 /** Botón flotante + panel lateral deslizable. Se renderiza globalmente. */
 export default function VoiceTutor() {
   const { config, isConfigured, openSettings } = useAgent()
-  const { lessonContent, open, setOpen, voiceName, supported: ttsSupported, setHighlightText } = useVoiceTutor()
+  const { lessonContent, open, setOpen, voiceName, supported: ttsSupported, setMarks } = useVoiceTutor()
   const sr = useSpeechRecognition('es-ES')
 
   const [mode, setMode] = useState<Mode>('idle')
@@ -193,9 +216,9 @@ export default function VoiceTutor() {
     sr.stop()
     setMode('idle')
     setModelLoad(null)
-    setHighlightText('')
-  }, [sr, ttsSupported, setHighlightText])
+setMarks([])
 
+  }, [sr, ttsSupported, setMarks])
   // Al cerrar el panel: detener todo en marcha.
   useEffect(() => {
     if (!open) stopAll()
@@ -249,33 +272,35 @@ export default function VoiceTutor() {
       )).trim()
 
       if (stoppingRef.current) return
-      let { speech, reference } = parseSpeech(raw)
+      let { speech, marks } = parseSpeech(raw)
       let text = speech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
 
-      // ── Auto-verificación: ¿la cita del LLM está realmente en la lección? ──
-      if (reference && reference.length > 8 && !referenceIsValid(reference, lessonContent)) {
-        // La cita no coincide → pedirle al LLM que la corrija
+      // ── Auto-verificación: ¿las marcas del LLM están realmente en la lección? ──
+      const invalidMarks = marks.filter((mk) => mk.text.length > 4 && !markIsValid(mk.text, lessonContent))
+      if (invalidMarks.length > 0) {
         const fixMsgs: Message[] = buildLLMMessages(
-          `${raw}\n\nLa referencia que diste ("${reference}") no aparece en el contenido de la lección. ` +
-          `Tu cita debe ser un fragmento VERBATIM copiado del contenido. ` +
-          `Vuelve a responder con el mismo JSON pero esta vez copia EXACTAMENTE la frase del contenido. ` +
-          `Si no hay un fragmento adecuado, pon "reference": null.`
+          `${raw}\n\nAlgunas marcas que diste no aparecen en el contenido de la lección:\n` +
+          invalidMarks.map((mk) => `- "${mk.text}" (${mk.style})`).join('\n') +
+          `\n\nLas "text" de cada marca deben ser fragmentos VERBATIM copiados del contenido. ` +
+          `Vuelve a responder con el mismo JSON, corrigiendo las marcas para que coincidan exactamente con el texto de la lección. ` +
+          `Si no hay un fragmento adecuado, elimina esa marca del array.`
         )
         try {
           const fixed = (await completeLLM(configRef.current, fixMsgs, abortRef.current.signal)).trim()
           if (stoppingRef.current) return
           if (fixed) {
             const reparsed = parseSpeech(fixed)
-            if (reparsed.speech) { speech = reparsed.speech; text = reparsed.speech }
-            if (reparsed.reference !== null) reference = reparsed.reference
+            if (reparsed.speech) { text = reparsed.speech }
+            if (reparsed.marks.length > 0) marks = reparsed.marks
           }
         } catch {
-          // si falla la corrección, seginruir con la respuesta original
+          // si falla la corrección, seguir con las marcas originales
         }
       }
 
-      // Resaltar la parte de la lección a la que hace referencia el tutor
-      setHighlightText(reference && reference.length > 8 && referenceIsValid(reference, lessonContent) ? reference : '')
+      // Filtrar solo las marcas válidas y setearlas para el renderer
+      const validMarks = marks.filter((mk) => mk.text.length >= 3 && markIsValid(mk.text, lessonContent))
+      setMarks(validMarks)
 
       chatRef.current = [...chatRef.current, { role: 'tutor', text }]
       setChat([...chatRef.current])
@@ -292,10 +317,10 @@ export default function VoiceTutor() {
       if (e.name !== 'AbortError') {
         setError(e.message ?? 'Error al procesar la respuesta')
         setMode('idle')
-        setHighlightText('')
+        setMarks([])
       }
     }
-  }, [sr, ttsSupported])
+  }, [sr, ttsSupported, setMarks])
 
   // (sin VAD externo: la detección de fin de habla se basa en el STT)
 

@@ -62,6 +62,11 @@ export function resolveVoice(preferredName?: string): SpeechSynthesisVoice | nul
 
 // ─── Contexto del tutor ─────────────────────────────────────────────────────
 
+export interface TutorMark {
+  text: string
+  style: 'highlight' | 'underline'
+}
+
 interface VoiceTutorContextValue {
   lessonContent: string
   setLessonContent: (content: string) => void
@@ -70,9 +75,9 @@ interface VoiceTutorContextValue {
   voiceName: string
   setVoiceName: (name: string) => void
   supported: boolean
-  /** Cita del contenido a resaltar en la lección mientras el tutor habla. */
-  highlightText: string
-  setHighlightText: (s: string) => void
+  /** Marcas del tutor en el contenido (resaltador + subrayado). */
+  marks: TutorMark[]
+  setMarks: (m: TutorMark[]) => void
 }
 
 const VoiceTutorContext = createContext<VoiceTutorContextValue | null>(null)
@@ -81,7 +86,7 @@ export function VoiceTutorProvider({ children }: { children: ReactNode }) {
   const [lessonContent, setLessonContentState] = useState('')
   const [open, setOpen] = useState(false)
   const [voiceName, setVoiceNameState] = useState(loadSavedVoice)
-  const [highlightText, setHighlightText] = useState('')
+  const [marks, setMarks] = useState<TutorMark[]>([])
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   // Las voces cargan async en algunos navegadores; forzar refresh al cambiar.
@@ -121,7 +126,7 @@ export function VoiceTutorProvider({ children }: { children: ReactNode }) {
   return (
     <VoiceTutorContext.Provider value={{
       lessonContent, setLessonContent, open, setOpen, voiceName, setVoiceName, supported,
-      highlightText, setHighlightText,
+      marks, setMarks,
     }}>
       {children}
     </VoiceTutorContext.Provider>

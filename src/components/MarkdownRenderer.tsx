@@ -5,11 +5,12 @@ import InteractiveCode from './InteractiveCode'
 import { highlightCode } from '../utils/highlight'
 import type { Segment } from '../types'
 import { segmentMarkdown } from '../utils/courseLoader'
+import type { TutorMark } from '../context/VoiceTutorContext'
 
 interface Props {
   content: string
-  /** Cita del contenido a resaltar (subcadena a buscar en segmentos de prosa). */
-  highlight?: string
+  /** Marcas del tutor (resaltador + subrayado) a aplicar en los segmentos de prosa. */
+  marks?: TutorMark[]
 }
 
 /** Normaliza texto para comparación difusa (sin tildes, minúsculas, sin signos). */
@@ -17,100 +18,109 @@ function normalize(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-/** ¿El segmento de prosa contiene la cita (comparación difusa)? */
-function proseMatches(segContent: string, ref: string): boolean {
-  if (!ref || ref.length < 8) return false
+/** ¿El segmento de prosa contiene la marca (comparación difusa)? */
+function proseMatchesMark(segContent: string, markText: string): boolean {
+  if (!markText || markText.length < 4) return false
   const a = normalize(segContent)
-  const b = normalize(ref)
+  const b = normalize(markText)
   if (!a || !b) return false
   if (a.includes(b)) return true
-  if (b.includes(a.slice(0, 60))) return true
   const aw = new Set(a.split(' ').filter((w) => w.length > 3))
   const bw = b.split(' ').filter((w) => w.length > 3)
+  if (!bw.length) return false
   let hits = 0
   for (const w of bw) if (aw.has(w)) hits++
-  return hits >= 5 && hits / bw.length >= 0.5
+  return hits / bw.length >= 0.5 && hits >= 2
 }
 
-/** Busca el rango de caracteres del segmento que más coincide con la cita. */
-function findHighlightRange(segContent: string, ref: string): { start: number; end: number } | null {
-  if (!ref || ref.length < 6) return null
-  const refN = normalize(ref)
-  const segN = normalize(segContent)
-  if (!refN || !segN) return null
-
-  // Caso ideal: la cita normalizada es subcadena del segmento normalizado.
-  // Pero los rangos pueden no alinearse (porque normalizar cambia signos por
-  // espacios), así que buscamos en el texto original.
-  const re = normalizeRegex(ref)
-  if (re) {
-    const m = re.exec(segContent)
-    if (m && m.index >= 0) return { start: m.index, end: m.index + m[0].length }
-  }
-
-  // Busca subsecuencia: la primera palabra (>=4 chars) de la cita en el seg
-  const words = refN.split(' ').filter((w) => w.length >= 4)
-  if (!words.length) return null
-  const segNLowers = segContent.toLowerCase()
-  // intenta encontrar la primera palabra clave
-  for (const w of words) {
-    const idx = segNLowers.indexOf(w)
-    if (idx >= 0) {
-      // Última palabra clave cercana para cerrar el rango
-      const lastW = words[words.length - 1]
-      const lastIdx = segNLowers.indexOf(lastW, idx)
-      if (lastIdx >= idx) return { start: idx, end: lastIdx + lastW.length }
-      return { start: idx, end: idx + w.length }
-    }
-  }
-  return null
+/** ¿Algún segmento de prosa contiene esta marca? → para decidir cúal párrafo activar. */
+function segmentMatchesAnyMark(segContent: string, marks: TutorMark[]): boolean {
+  return marks.some((mk) => proseMatchesMark(segContent, mk.text))
 }
 
-/** Construye una regex flexible (ignorando tildes/signos) para la cita. */
+/** Construye una regex flexible (ignorando tildes/signos) para una marca. */
 function normalizeRegex(ref: string): RegExp | null {
-  if (!ref || ref.length < 6) return null
-  // Escapa caracteres especiales y permite saltos/decoración entre palabras
+  if (!ref || ref.length < 3) return null
   const cleaned = ref.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const parts = cleaned.split(/\s+/).filter((w) => w.length > 2)
-  if (parts.length < 2) return null
+  const parts = cleaned.split(/\s+/).filter((w) => w.length > 1)
+  if (!parts.length) return null
   let pattern = ''
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    pattern += (i ? '[^a-z]+?' : '') + p
+    pattern += (i ? '[^a-záéíóúñ0-9]+?' : '') + p
   }
-  // Permitir coincidencia parcial: aseguramos match no greedy del final
   return new RegExp(pattern, 'i')
 }
 
-/**
- * Divide el contenido del segmento en tres partes y envuelve el rango medio
- * en <mark> estilizado, para efecto resaltador al estilo de marcador.
- * El segmento es texto plano (prose): lo rendereamos con ReactMarkdown pero
- * antes envolvemos la cita en una marca sintética que transformamos a <mark>.
- */
-function insertHighlightMark(markdown: string, range: { start: number; end: number } | null): string {
-  if (!range) return markdown
-  const before = markdown.slice(0, range.start)
-  const hit = markdown.slice(range.start, range.end)
-  const after = markdown.slice(range.end)
-  // Usamos una sintaxis especial (*‹›*) para marcar el hit y lo reemplazaremos
-  // en los componentes de markdown por un <mark>
-  return `${before}==HL==${hit}==/HL==${after}`
+interface Range { start: number; end: number; style: 'highlight' | 'underline'; key: string }
+
+/** Busca todos los rangos donde las marcas aparecen en un segmento de prosa. */
+function findMarkRanges(segContent: string, marks: TutorMark[]): Range[] {
+  const ranges: Range[] = []
+  for (let mi = 0; mi < marks.length; mi++) {
+    const mk = marks[mi]
+    const re = normalizeRegex(mk.text)
+    if (!re) continue
+    // Buscar todas las ocurrencias (hasta 3) — pero solo la primera basta
+    const m = re.exec(segContent)
+    if (m && m.index >= 0) {
+      ranges.push({ start: m.index, end: m.index + m[0].length, style: mk.style, key: `mk-${mi}` })
+    } else {
+      // fallback: buscar la primera palabra clave (>=4 chars)
+      const words = normalize(mk.text).split(' ').filter((w) => w.length >= 4)
+      for (const w of words) {
+        const idx = segContent.toLowerCase().indexOf(w)
+        if (idx >= 0) {
+          ranges.push({ start: idx, end: idx + w.length, style: mk.style, key: `mk-${mi}` })
+          break
+        }
+      }
+    }
+  }
+  // Ordenar por start; en solapamientos, gana el primero
+  ranges.sort((a, b) => a.start - b.start)
+  const filtered: Range[] = []
+  let maxEnd = -1
+  for (const r of ranges) {
+    if (r.start >= maxEnd) {
+      filtered.push(r)
+      maxEnd = r.end
+    }
+  }
+  return filtered
 }
 
-export default function MarkdownRenderer({ content, highlight }: Props) {
+/** Inserta marcas ==HL==/==UL== en el markdown para que los componentes las transformen. */
+function insertMarks(markdown: string, ranges: Range[]): string {
+  if (!ranges.length) return markdown
+  // Insertar de atrás hacia adelante para no desplazar índices
+  const sorted = [...ranges].sort((a, b) => b.start - a.start)
+  let result = markdown
+  for (const r of sorted) {
+    const before = result.slice(0, r.start)
+    const hit = result.slice(r.start, r.end)
+    const after = result.slice(r.end)
+    const tag = r.style === 'underline' ? '==UL==' : '==HL=='
+    const endTag = r.style === 'underline' ? '==/UL==' : '==/HL=='
+    result = `${before}${tag}${hit}${endTag}${after}`
+  }
+  return result
+}
+
+export default function MarkdownRenderer({ content, marks }: Props) {
   const segments = segmentMarkdown(content)
-  const activeIdx = highlight
-    ? segments.findIndex((s) => s.type === 'prose' && proseMatches(s.content, highlight))
+  const activeMarks = marks ?? []
+  const activeIdx = activeMarks.length
+    ? segments.findIndex((s) => s.type === 'prose' && segmentMatchesAnyMark(s.content, activeMarks))
     : -1
 
-  // Rango exacto a resaltar dentro del segmento activo
-  const activeRange = useMemo(() => {
-    if (activeIdx < 0 || !highlight) return null
+  // Rangos exactos de las marcas dentro del segmento activo
+  const activeRanges = useMemo(() => {
+    if (activeIdx < 0 || !activeMarks.length) return []
     const seg = segments[activeIdx]
-    if (seg.type !== 'prose') return null
-    return findHighlightRange(seg.content, highlight)
-  }, [activeIdx, highlight, segments])
+    if (seg.type !== 'prose') return []
+    return findMarkRanges(seg.content, activeMarks)
+  }, [activeIdx, activeMarks, segments])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -125,10 +135,9 @@ export default function MarkdownRenderer({ content, highlight }: Props) {
       {segments.map((seg, idx) => {
         const isActive = idx === activeIdx
         switch (seg.type) {
-          case 'prose':
-            // Inyecta marca de resaltado en el segmento activo
-            const proseWithMark = isActive && activeRange
-              ? insertHighlightMark(seg.content, activeRange)
+          case 'prose': {
+            const proseWithMarks = isActive && activeRanges.length
+              ? insertMarks(seg.content, activeRanges)
               : seg.content
             return (
               <div
@@ -139,10 +148,11 @@ export default function MarkdownRenderer({ content, highlight }: Props) {
                 }`}
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]} components={isActive ? hlComponents : mdComponents}>
-                  {proseWithMark}
+                  {proseWithMarks}
                 </ReactMarkdown>
               </div>
             )
+          }
           case 'exec':
             return <InteractiveCode key={idx} lang={seg.lang} code={seg.content} executable />
           case 'code':
@@ -275,52 +285,68 @@ const mdComponents = {
   ),
 }
 
-// ─── Resaltado de texto (==HL==...==/HL== → <mark> estilo resaltador) ────────
+// ─── Resaltado de texto (==HL==/==UL== → <mark>/<u> estilizados) ────────────
 
-/** Recursivamente reemplaza los nodos de texto que contienen la marca HL. */
-function replaceHLInNode(node: ReactNode): ReactNode {
+/** Recursivamente reemplaza las marcas ==HL==.../==HL== y ==UL==.../==UL==. */
+function replaceMarksInNode(node: ReactNode): ReactNode {
   if (typeof node === 'string') {
-    const marker = '==HL=='
-    const endMarker = '==/HL=='
     const parts: ReactNode[] = []
     let cursor = 0
-    let i = -1
-    while ((i = node.indexOf(marker, cursor)) >= 0) {
-      const e = node.indexOf(endMarker, i + marker.length)
-      if (e < 0) break
-      if (i > cursor) parts.push(node.slice(cursor, i))
-      const hit = node.slice(i + marker.length, e)
-      parts.push(
-        <mark
-          key={parts.length}
-          className="rounded-sm px-0.5 transition-all duration-700"
-          style={{
-            background: 'rgba(255, 224, 102, 0.5)',
-            color: 'inherit',
-            boxShadow: '0 0 0 1px rgba(255, 224, 102, 0.55)',
-          }}
-        >
-          {hit}
-        </mark>
-      )
-      cursor = e + endMarker.length
+    let key = 0
+    // Patrón global para ambos tipos de marca
+    const re = /==HL==(.*?)==\/HL==|==UL==(.*?)==\/UL==/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(node)) !== null) {
+      if (m.index > cursor) parts.push(node.slice(cursor, m.index))
+      const isHL = m[1] !== undefined
+      const hit = isHL ? m[1] : m[2]
+      if (isHL) {
+        parts.push(
+          <mark
+            key={key++}
+            className="rounded-sm px-0.5 transition-all duration-700"
+            style={{
+              background: 'rgba(255, 224, 102, 0.5)',
+              color: 'inherit',
+              boxShadow: '0 0 0 1px rgba(255, 224, 102, 0.55)',
+            }}
+          >
+            {hit}
+          </mark>
+        )
+      } else {
+        parts.push(
+          <span
+            key={key++}
+            className="transition-all duration-700"
+            style={{
+              borderBottom: '2px solid rgba(204, 153, 255, 0.9)',
+              textDecoration: 'none',
+              paddingBottom: '1px',
+            }}
+          >
+            {hit}
+          </span>
+        )
+      }
+      cursor = m.index + m[0].length
     }
     if (parts.length === 0) return node
     if (cursor < node.length) parts.push(node.slice(cursor))
     return <>{parts}</>
   }
-  if (Array.isArray(node)) return node.map((c, idx) => <Fragment key={idx}>{replaceHLInNode(c)}</Fragment>)
+  if (Array.isArray(node)) return node.map((c, idx) => <Fragment key={idx}>{replaceMarksInNode(c)}</Fragment>)
   return node
 }
 
-/** Wrapper para <p> que inyecta el highlighter dentro de los textos hijos. */
+/** Wrapper para <p> que inyecta las marcas dentro de los textos hijos. */
 function HighlightedP({ children }: { children?: ReactNode }) {
-  return <p className="mb-4 leading-7 text-text/85">{replaceHLInNode(children)}</p>
+  return <p className="mb-4 leading-7 text-text/85">{replaceMarksInNode(children)}</p>
 }
 
-/** Wrapper para <li> que soporta el highlighter. */
+/** Wrapper para <li> que soporta las marcas. */
 function HighlightedLi({ children }: { children?: ReactNode }) {
-  return <li className="leading-7">{replaceHLInNode(children)}</li>
+  return <li className="leading-7">{replaceMarksInNode(children)}</li>
 }
 
 const hlComponents = {
