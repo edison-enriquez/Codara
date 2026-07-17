@@ -8,6 +8,14 @@ import type {
   IOTest,
 } from '../types'
 
+// ─── Title cleaning (oculta numeración de capítulos/labs) ──────────────────────
+// Quita prefijos como "1.0 — ", "1.1.3 — ", "Lab 1.2.18 — ", "Lab 3.4 — ".
+const TITLE_PREFIX_RE = /^\s*(?:Lab\s+)?\d+(?:\.\d+)*\s+[—–-]\s+/i
+
+export function cleanTitle(title: string): string {
+  return title ? title.replace(TITLE_PREFIX_RE, '') : title
+}
+
 // ─── Frontmatter parser (subset YAML con soporte de objetos anidados) ────────
 
 export function parseFrontmatter(raw: string): { meta: LessonFrontmatter; content: string } {

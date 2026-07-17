@@ -8,7 +8,7 @@ import MarkdownRenderer from './MarkdownRenderer'
 import AgentPanel from './AgentPanel'
 import { useCodeRunner } from '../hooks/useCodeRunner'
 import { useAgent } from '../context/AgentContext'
-import { markComplete } from '../utils/courseLoader'
+import { markComplete, cleanTitle } from '../utils/courseLoader'
 import { reportPassed } from '../utils/passedCounts'
 import type { ParsedLesson, LessonMeta } from '../types'
 
@@ -67,7 +67,7 @@ export default function LabView({ lesson, courseId, prevLesson, nextLesson }: Pr
               </span>
             )}
           </div>
-          <h1 className="mb-4 text-xl font-bold text-text">{meta.title}</h1>
+          <h1 className="mb-4 text-xl font-bold text-text">{cleanTitle(meta.title)}</h1>
 
           <MarkdownRenderer content={displayContent} />
         </div>

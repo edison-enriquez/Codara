@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
 import { useEffect } from 'react'
 import { useCourseData, useLesson } from '../hooks/useCourses'
+import { cleanTitle } from '../utils/courseLoader'
 import { useVoiceTutor } from '../context/VoiceTutorContext'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import LabView from '../components/LabView'
@@ -53,13 +54,13 @@ export default function CoursePage() {
             {course.title}
           </Link>
           <ChevronRight size={11} className="shrink-0 text-muted/40" />
-          <span className="truncate text-text">{currentLessonMeta?.title ?? lesson?.meta?.title ?? 'Lección'}</span>
+          <span className="truncate text-text">{cleanTitle(currentLessonMeta?.title ?? lesson?.meta?.title ?? 'Lección')}</span>
         </nav>
 
         {/* Prev / Next */}
         <div className="flex shrink-0 items-center gap-1">
           {prevLesson ? (
-            <Link to={`/course/${courseId}/${prevLesson.id}`} title={prevLesson.title}
+            <Link to={`/course/${courseId}/${prevLesson.id}`} title={cleanTitle(prevLesson.title)}
               className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:border-green/40 hover:text-green transition-colors">
               <ChevronLeft size={15} />
             </Link>
@@ -67,7 +68,7 @@ export default function CoursePage() {
             <span className="flex h-7 w-7 items-center justify-center rounded border border-border/50 text-muted/30"><ChevronLeft size={15} /></span>
           )}
           {nextLesson ? (
-            <Link to={`/course/${courseId}/${nextLesson.id}`} title={nextLesson.title}
+            <Link to={`/course/${courseId}/${nextLesson.id}`} title={cleanTitle(nextLesson.title)}
               className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:border-green/40 hover:text-green transition-colors">
               <ChevronRight size={15} />
             </Link>
@@ -100,7 +101,7 @@ export default function CoursePage() {
                     <BookOpen size={11} />
                     <span>Lección {(currentIdx ?? 0) + 1}</span>
                   </div>
-                  <h1 className="text-xl font-bold text-text">{lesson.meta.title}</h1>
+                  <h1 className="text-xl font-bold text-text">{cleanTitle(lesson.meta.title)}</h1>
                 </div>
                 <MarkdownRenderer content={lesson.displayContent} highlight={highlightText} />
               </div>
@@ -116,7 +117,7 @@ export default function CoursePage() {
                   className="flex items-center gap-1.5 border border-border px-4 py-2 text-xs text-muted hover:border-green/40 hover:text-text uppercase tracking-wider transition-colors"
                 >
                   <ChevronLeft size={14} />
-                  {prevLesson.title}
+                  {cleanTitle(prevLesson.title)}
                 </Link>
               ) : (
                 <Link
@@ -132,7 +133,7 @@ export default function CoursePage() {
                   to={`/course/${courseId}/${nextLesson.id}`}
                   className="flex items-center gap-1.5 border border-green/50 bg-green/10 px-4 py-2 text-xs font-bold text-green hover:bg-green/20 uppercase tracking-wider transition-colors"
                 >
-                  {nextLesson.title}
+                  {cleanTitle(nextLesson.title)}
                   <ChevronRight size={14} />
                 </Link>
               ) : (

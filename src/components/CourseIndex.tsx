@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, CheckCircle2, Circle, BookOpen, FlaskConical, ChevronLeft, Play, Users, X } from 'lucide-react'
-import { isComplete } from '../utils/courseLoader'
+import { isComplete, cleanTitle } from '../utils/courseLoader'
 import { fetchCounts } from '../utils/passedCounts'
 import type { CourseData, LessonMeta } from '../types'
 
@@ -210,7 +210,7 @@ function Row({
           : <BookOpen size={13} className="shrink-0 text-muted/60" />}
         <span className="min-w-0">
           <span className={`block truncate text-sm ${completed ? 'text-muted line-through' : 'text-text group-hover:text-green'} transition-colors`}>
-            {lesson.title}
+            {cleanTitle(lesson.title)}
           </span>
           {chapter && <span className="block truncate text-[10px] text-muted/50">{chapter}</span>}
         </span>
