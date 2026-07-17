@@ -52,7 +52,9 @@ Responde con un objeto JSON válido, sin markdown, sin texto fuera del JSON:
   ]
 }
 - "marks" puede ser un array vacío [] si no hay nada que marcar.
-- "style" solo puede ser "highlight" o "underline".`
+- "style" solo puede ser "highlight" o "underline".
+- NUNCA uses etiquetas como ==UL==...==/UL== ni ==HL==...==/HL== en el campo "speech". El resaltado se hace ÚNICAMENTE mediante el array "marks". Si pones esas etiquetas en "speech", el estudiante las verá escritas literalmente en el chat y no se resaltará nada.
+- Para verificar que tus marcas son correctas: el texto en "marks" debe aparecer EXACTAMENTE IGUAL en el contenido de la lección (mismas palabras, mismo orden). Si no estás seguro, usa "marks": [].`
 
 interface Mark {
   text: string
@@ -79,6 +81,31 @@ function parseSpeech(raw: string): { speech: string; marks: Mark[] } {
     } catch {}
   }
   return { speech: raw.trim(), marks: [] }
+}
+
+/** Extrae marcas que el agente puso directamente en el speech con sintaxis
+ *  ==HL==...==/HL== o ==UL==...==/UL==, las elimina del texto y las convierte
+ *  a objetos Mark. Esto permite tolerar que el agente se equivoque de formato. */
+function extractMarksFromSpeech(speech: string, existingMarks: Mark[]): { cleanSpeech: string; allMarks: Mark[] } {
+  const tagRe = /==(HL|UL)==(.*?)==\/\1==/g
+  let clean = speech
+  const extracted: Mark[] = []
+  let match: RegExpExecArray | null
+  while ((match = tagRe.exec(speech)) !== null) {
+    const style = match[1] === 'HL' ? 'highlight' as const : 'underline' as const
+    const text = match[2].trim()
+    if (text.length >= 2) {
+      extracted.push({ text, style })
+    }
+  }
+  if (extracted.length === 0) return { cleanSpeech: speech, allMarks: existingMarks }
+  clean = speech.replace(tagRe, '$2').trim()
+  // Fusionar, evitando duplicados
+  const texts = new Set(existingMarks.map(m => m.text + m.style))
+  for (const m of extracted) {
+    if (!texts.has(m.text + m.style)) existingMarks.push(m)
+  }
+  return { cleanSpeech: clean, allMarks: existingMarks }
 }
 
 function norm(s: string): string {
@@ -274,6 +301,11 @@ setMarks([])
 
       if (stoppingRef.current) return
       let { speech, marks } = parseSpeech(raw)
+      // Post-procesamiento: si el agente puso ==UL==/==HL== en el speech,
+      // extraerlos como marcas y limpiar el texto
+      const extracted = extractMarksFromSpeech(speech, marks)
+      speech = extracted.cleanSpeech
+      marks = extracted.allMarks
       let text = speech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
 
       // ── Auto-verificación: ¿las marcas del LLM están realmente en la lección? ──
