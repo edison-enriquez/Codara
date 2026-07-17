@@ -13,6 +13,10 @@ export interface UseSpeechRecognitionResult {
   isListening: boolean
   transcript: string
   interim: string
+  /** Timestamp (performance.now) del último onresult recibido. 0 si ninguno. */
+  lastResultAt: number
+  /** ¿El estudiante ha producido texto en esta sesión de escucha? */
+  hasSpeech: boolean
   start: () => void
   stop: () => void
   reset: () => void
@@ -33,6 +37,8 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
   const [interim, setInterim] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [ended, setEnded] = useState(false)
+  const [lastResultAt, setLastResultAt] = useState(0)
+  const [hasSpeech, setHasSpeech] = useState(false)
   const recRef = useRef<any>(null)
 
   const start = useCallback(() => {
@@ -41,6 +47,8 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
     setTranscript('')
     setInterim('')
     setEnded(false)
+    setLastResultAt(0)
+    setHasSpeech(false)
     const rec = new Ctor()
     rec.lang = lang
     rec.continuous = true // ← mantener escucha hasta que el usuario pare
@@ -71,6 +79,9 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
       }
       if (finalText) setTranscript((prev) => (prev ? prev + ' ' : '') + finalText.trim())
       setInterim(interimText)
+      // Marca de actividad para que el tutor detecte fin de habla
+      setLastResultAt(performance.now())
+      if (finalText || interimText) setHasSpeech(true)
     }
     recRef.current = rec
     try {
@@ -94,6 +105,8 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
     setEnded(false)
     setTranscript('')
     setInterim('')
+    setLastResultAt(0)
+    setHasSpeech(false)
   }, [])
 
   const reset = useCallback(() => {
@@ -101,6 +114,8 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
     setInterim('')
     setError(null)
     setEnded(false)
+    setLastResultAt(0)
+    setHasSpeech(false)
   }, [])
 
   useEffect(() => {
@@ -114,5 +129,5 @@ export function useSpeechRecognition(lang = 'es-ES'): UseSpeechRecognitionResult
     }
   }, [])
 
-  return { isListening, transcript, interim, start, stop, reset, ended, clearEnded, supported: supportedBool, error }
+  return { isListening, transcript, interim, lastResultAt, hasSpeech, start, stop, reset, ended, clearEnded, supported: supportedBool, error }
 }
