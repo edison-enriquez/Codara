@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import {
   Mic, Loader2, X, Headphones, Send,
 } from 'lucide-react'
@@ -8,7 +8,8 @@ import { completeLLM, type Message, type LoadProgress } from '../utils/llmClient
 import { extractReadableChunks } from '../utils/speechText'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import VoicePicker from './VoicePicker'
-import VoiceOrb from './VoiceOrb'
+
+const VoiceOrbThree = lazy(() => import('./VoiceOrbThree'))
 
 type Mode =
   | 'idle'
@@ -415,11 +416,9 @@ setMarks([])
         {/* ── Modo LAVA: orbe ocupa todo el espacio, sin texto ni footer ── */}
         {lavaMode && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-8">
-            <VoiceOrb
-              state={mode === 'speaking' ? 'speaking' : 'listening'}
-              level={mode === 'speaking' ? orbSpeakerLevel : orbListenLevel}
-              size={220}
-            />
+            <Suspense fallback={<div style={{ width: 220, height: 220 }} />}>
+              <VoiceOrbThree mode={mode as any} level={mode === 'speaking' ? orbSpeakerLevel : orbListenLevel} size={220} />
+            </Suspense>
             <div className="text-center">
               <p className="text-sm font-medium text-text/90">
                 {mode === 'speaking' ? 'El tutor está hablando…' : sr.hasSpeech ? 'Procesando…' : 'Escuchando…'}
