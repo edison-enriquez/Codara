@@ -43,7 +43,6 @@ Debes responder con un objeto JSON válido, sin markdown, sin texto fuera del JS
 }`
 
 function parseSpeech(raw: string): { speech: string; reference: string | null } {
-  // Intenta parsear JSON; si no, usa el texto tal cual.
   const m = raw.match(/\{[\s\S]*\}/)
   if (m) {
     try {
@@ -54,6 +53,30 @@ function parseSpeech(raw: string): { speech: string; reference: string | null } 
     } catch {}
   }
   return { speech: raw.trim(), reference: null }
+}
+
+/** Normaliza texto para comparación difusa (sin tildes, minúsculas, sin signos). */
+function norm(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/** ¿La cita (reference) del LLM aparece realmente en el contenido de la lección? */
+function referenceIsValid(ref: string, lessonContent: string): boolean {
+  if (!ref || ref.length < 8) return true // null/corta ⇒ no se valida, se acepta
+  const refN = norm(ref)
+  const chunks = extractReadableChunks(lessonContent)
+  for (const ch of chunks) {
+    const cN = norm(ch)
+    if (cN.includes(refN)) return true
+    // Coincidencia de palabras clave (>= 60% de palabras comunes)
+    const refWords = refN.split(' ').filter((w) => w.length > 3)
+    if (!refWords.length) continue
+    const chunkWords = new Set(cN.split(' ').filter((w) => w.length > 3))
+    let hits = 0
+    for (const w of refWords) if (chunkWords.has(w)) hits++
+    if (hits / refWords.length >= 0.6 && hits >= 4) return true
+  }
+  return false
 }
 
 function speak(text: string, voiceName: string, onEnd?: () => void): void {
@@ -226,11 +249,33 @@ export default function VoiceTutor() {
       )).trim()
 
       if (stoppingRef.current) return
-      const { speech, reference } = parseSpeech(raw)
-      const text = speech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
+      let { speech, reference } = parseSpeech(raw)
+      let text = speech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
+
+      // ── Auto-verificación: ¿la cita del LLM está realmente en la lección? ──
+      if (reference && reference.length > 8 && !referenceIsValid(reference, lessonContent)) {
+        // La cita no coincide → pedirle al LLM que la corrija
+        const fixMsgs: Message[] = buildLLMMessages(
+          `${raw}\n\nLa referencia que diste ("${reference}") no aparece en el contenido de la lección. ` +
+          `Tu cita debe ser un fragmento VERBATIM copiado del contenido. ` +
+          `Vuelve a responder con el mismo JSON pero esta vez copia EXACTAMENTE la frase del contenido. ` +
+          `Si no hay un fragmento adecuado, pon "reference": null.`
+        )
+        try {
+          const fixed = (await completeLLM(configRef.current, fixMsgs, abortRef.current.signal)).trim()
+          if (stoppingRef.current) return
+          if (fixed) {
+            const reparsed = parseSpeech(fixed)
+            if (reparsed.speech) { speech = reparsed.speech; text = reparsed.speech }
+            if (reparsed.reference !== null) reference = reparsed.reference
+          }
+        } catch {
+          // si falla la corrección, seginruir con la respuesta original
+        }
+      }
 
       // Resaltar la parte de la lección a la que hace referencia el tutor
-      setHighlightText(reference && reference.length > 8 ? reference : '')
+      setHighlightText(reference && reference.length > 8 && referenceIsValid(reference, lessonContent) ? reference : '')
 
       chatRef.current = [...chatRef.current, { role: 'tutor', text }]
       setChat([...chatRef.current])
