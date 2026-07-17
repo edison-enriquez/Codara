@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
-  Mic, MicOff, Volume2, Loader2, X, Headphones, BookOpen, MessageSquare,
+  Mic, MicOff, Volume2, Loader2, X, Headphones,
 } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
 import { useVoiceTutor, resolveVoice } from '../context/VoiceTutorContext'
@@ -8,9 +8,6 @@ import { completeLLM, type Message, type LoadProgress } from '../utils/llmClient
 import { extractReadableChunks } from '../utils/speechText'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import VoicePicker from './VoicePicker'
-import ReadingMode from './ReadingMode'
-
-type PanelTab = 'tutor' | 'reader'
 
 type Mode =
   | 'idle'
@@ -59,7 +56,6 @@ export default function VoiceTutor() {
   const sr = useSpeechRecognition('es-ES')
 
   const [mode, setMode] = useState<Mode>('idle')
-  const [tab, setTab] = useState<PanelTab>('tutor')
   const [chat, setChat] = useState<ChatTurn[]>([])
   const [error, setError] = useState<string | null>(null)
   const [modelLoad, setModelLoad] = useState<LoadProgress | null>(null)
@@ -97,11 +93,6 @@ export default function VoiceTutor() {
   useEffect(() => {
     if (!open) stopAll()
   }, [open, stopAll])
-
-  // Al salir de la pestaña de tutoría: detener la sesión activa.
-  useEffect(() => {
-    if (tab !== 'tutor') stopAll()
-  }, [tab, stopAll])
 
   // Construye los mensajes del LLM a partir del historial del chat.
   function buildLLMMessages(userText?: string): Message[] {
@@ -300,44 +291,16 @@ export default function VoiceTutor() {
 
         {/* Scroll area */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
-          {/* Selector de voz (común a ambos modos) */}
+          {/* Selector de voz */}
           <VoicePicker />
 
-          {/* Toggle de modos */}
-          <div className="my-4 grid grid-cols-2 gap-1 rounded-lg border border-border bg-base p-1">
-            <button
-              onClick={() => setTab('tutor')}
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                tab === 'tutor' ? 'bg-purple/15 text-purple' : 'text-muted hover:text-text'
-              }`}
-            >
-              <MessageSquare size={13} />
-              Tutoría
-            </button>
-            <button
-              onClick={() => setTab('reader')}
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                tab === 'reader' ? 'bg-purple/15 text-purple' : 'text-muted hover:text-text'
-              }`}
-            >
-              <BookOpen size={13} />
-              Lectura
-            </button>
-          </div>
-
-          {/* ── Modo Lectura: el contenido aparece al ritmo de la voz ── */}
-          {tab === 'reader' && (
-            <ReadingMode content={lessonContent} voiceName={voiceName} />
-          )}
-
-          {/* ── Modo Tutoría: conversación multi-turno por voz ── */}
-          {tab === 'tutor' && (
-            <>
-              {!isConfigured && (
-                <div className="mb-4 rounded-lg border border-yellow/20 bg-yellow/5 p-3 text-xs text-text/80">
-                  Para iniciar una tutoría por voz, primero configura el agente IA (Groq o modelo local).
-                </div>
-              )}
+          {/* ── Tutoría: conversación multi-turno por voz ── */}
+          <>
+            {!isConfigured && (
+              <div className="mb-4 mt-4 rounded-lg border border-yellow/20 bg-yellow/5 p-3 text-xs text-text/80">
+                Para iniciar una tutoría por voz, primero configura el agente IA (Groq o modelo local).
+              </div>
+            )}
 
               {/* Intro cuando no hay conversación */}
               {mode === 'idle' && chat.length === 0 && (
@@ -413,30 +376,27 @@ export default function VoiceTutor() {
               {sttSupported === false && mode !== 'idle' && (
                 <p className="mt-3 text-[11px] text-muted">El reconocimiento de voz no está disponible en este navegador. Usa Chrome o Edge.</p>
               )}
-            </>
-          )}
+          </>
         </div>
 
-        {/* Footer con acción principal (solo tutoría) */}
-        {tab === 'tutor' && (
-          <div className="border-t border-border p-4">
-            <button
-              onClick={handleMainClick}
-              disabled={busy}
-              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50 ${
-                listening
-                  ? 'border-red/50 bg-red/10 text-red hover:bg-red/20'
-                  : 'border-purple/40 bg-purple/10 text-purple hover:bg-purple/20'
-              }`}
-            >
-              {busy ? <Loader2 size={15} className="animate-spin" />
-                : listening ? <MicOff size={15} />
-                : <Mic size={15} />}
-              <Volume2 size={15} />
-              <span>{mainLabel}</span>
-            </button>
-          </div>
-        )}
+        {/* Footer con acción principal */}
+        <div className="border-t border-border p-4">
+          <button
+            onClick={handleMainClick}
+            disabled={busy}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50 ${
+              listening
+                ? 'border-red/50 bg-red/10 text-red hover:bg-red/20'
+                : 'border-purple/40 bg-purple/10 text-purple hover:bg-purple/20'
+            }`}
+          >
+            {busy ? <Loader2 size={15} className="animate-spin" />
+              : listening ? <MicOff size={15} />
+              : <Mic size={15} />}
+            <Volume2 size={15} />
+            <span>{mainLabel}</span>
+          </button>
+        </div>
       </aside>
     </>
   )
