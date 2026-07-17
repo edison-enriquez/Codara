@@ -112,25 +112,26 @@ export default function VoiceTutor() {
     }
   }, [mode, vad])
 
-  // ── Auto-envío cuando el usuario deja de hablar (VAD) ───────────────────
-  // Si el VAD detectó voz y luego silencio, y hay transcripción, envía solo.
+  // ── Auto-envío: el VAD llama sr.stop() cuando el usuario deja de hablar ──
+  // El effect de sr.ended (abajo) captura el transcript final y lo envía al LLM.
   useEffect(() => {
     if (mode !== 'listening') return
-    if (vad.speaking) { vadSpeakingSeenRef.current = true; return }
-    // silencio actual
-    if (!vadSpeakingSeenRef.current) return // aún no había hablado
-    const ans = sr.transcript.trim() || sr.interim.trim()
-    // Pequeño debounce para no cortar pausas naturales
+    if (!vad.active) return
+    if (vad.speaking) {
+      vadSpeakingSeenRef.current = true
+      return
+    }
+    // silencio actual: solo actúa si el usuario había hablado antes
+    if (!vadSpeakingSeenRef.current) return
+    // Debounce corto para no cortar pausas naturales cortas
     const tid = setTimeout(() => {
       if (modeRef.current !== 'listening') return
       if (vad.speaking) return // retomó el habla
-      if (ans) {
-        vadSpeakingSeenRef.current = false
-        sendResponseRef.current(ans)
-      }
-    }, 400)
+      vadSpeakingSeenRef.current = false
+      sr.stop() // ← el STT dispara onend → sr.ended → el effect de envío lo manda
+    }, 600)
     return () => clearTimeout(tid)
-  }, [vad.speaking, mode, sr.transcript, sr.interim])
+  }, [vad.speaking, mode, vad.active, sr])
 
   useEffect(() => () => {
     abortRef.current?.abort()
@@ -339,7 +340,7 @@ export default function VoiceTutor() {
               {/* Intro cuando no hay conversación */}
               {mode === 'idle' && chat.length === 0 && (
                 <div className="rounded-lg border border-border bg-base p-4 text-center text-xs text-muted">
-                  Escribe abajo o pulsa <span className="font-semibold text-purple">Hablar</span> para iniciar. El tutor conversará contigo, evaluará tus respuestas y hará preguntas de seguimiento sobre esta lección.
+                  Pulsa <span className="font-semibold text-purple">Hablar</span> y conversa de forma natural: cuando dejes de hablar, el tutor enviará tu respuesta automáticamente y seguirá el diálogo. También puedes escribir abajo si prefieres texto.
                 </div>
               )}
 
@@ -445,7 +446,7 @@ export default function VoiceTutor() {
               }`}
             >
               {listening ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
-              <span>{listening ? 'Terminé de hablar' : 'Hablar'}</span>
+              <span>{listening ? 'Detener' : 'Hablar'}</span>
             </button>
           )}
         </div>
