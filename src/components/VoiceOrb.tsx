@@ -94,7 +94,13 @@ export default function VoiceOrb({ state, level, size = 220 }: Props) {
     const draw = () => {
       tRef.current += 0.03
       const t = tRef.current
-      const lvl = lvlRef.current
+      // Nivel efectivo: mínimo de actividad cuando no está idle para que la
+      // lámpara de lava siempre vibre y burbujee aunque no llegue audio.
+      const rawLvl = lvlRef.current
+      const minLvl = stateRef.current === 'idle' ? 0 : 0.35
+      const lvl = Math.max(minLvl, rawLvl)
+      // "Respiración" cuando está idle: pulso lento suave
+      const breathing = stateRef.current === 'idle' ? (0.5 + 0.5 * Math.sin(t * 0.6)) * 0.15 : 0
       const s = stateRef.current
       const colors = colorsRef.current
       const c = (colors as any)[s] ?? (colors as any).idle
@@ -102,9 +108,10 @@ export default function VoiceOrb({ state, level, size = 220 }: Props) {
       ctx.clearRect(0, 0, size, size)
 
       // ── Halo / glow exterior ────────────────────────────────────────────
-      const haloR = baseR * (1.8 + lvl * 0.5)
+      const totalLvl = lvl + breathing
+      const haloR = baseR * (1.8 + totalLvl * 0.5)
       const halo = ctx.createRadialGradient(cx, cy, baseR * 0.8, cx, cy, haloR)
-      const accent = (c.accent || '').replace(/0\.\d+\)/, `${0.35 + lvl * 0.3})`)
+      const accent = (c.accent || '').replace(/0\.\d+\)/, `${0.35 + totalLvl * 0.3})`)
       halo.addColorStop(0, accent)
       halo.addColorStop(0.5, accent.replace(/0\.\d+\)/, '0.15)'))
       halo.addColorStop(1, accent.replace(/0\.\d+\)/, '0)'))
@@ -123,10 +130,10 @@ export default function VoiceOrb({ state, level, size = 220 }: Props) {
         // Onda media (deformación orgánica)
         const med = Math.sin(ang * 4 - t * 1.5) * 4
         // Onda rápida (vibración de voz)
-        const fast = Math.sin(ang * 7 + t * 3) * (s === 'idle' ? 1.5 : 3 + lvl * 4)
+        const fast = Math.sin(ang * 7 + t * 3) * (s === 'idle' ? 1.5 : 3 + totalLvl * 4)
         // Movimiento ascendente sugerido
         const yShift = Math.sin(t * 0.5) * 3
-        const r = baseR + slow + med + fast + (s !== 'idle' ? lvl * 10 : 0)
+        const r = baseR + slow + med + fast + (s !== 'idle' ? totalLvl * 10 : 0)
         const x = cx + Math.cos(ang) * r
         const y = cy + Math.sin(ang) * r + yShift
         if (i === 0) ctx.moveTo(x, y)
@@ -158,7 +165,7 @@ export default function VoiceOrb({ state, level, size = 220 }: Props) {
         const phase = ((t * (1 / b.duration) + b.delay) % 1)
         const by = cy + baseR - phase * baseR * 2.2
         const bx = cx + (b.x - 0.5) * baseR * 1.4 + Math.sin(t * 1.2 + i) * 6
-        const br = baseR * b.size * (0.7 + 0.3 * lvl) * (phase < 0.1 ? phase / 0.1 : phase > 0.9 ? (1 - phase) / 0.1 : 1)
+        const br = baseR * b.size * (0.7 + 0.3 * totalLvl) * (phase < 0.1 ? phase / 0.1 : phase > 0.9 ? (1 - phase) / 0.1 : 1)
         if (br < 1) continue
         const bg = ctx.createRadialGradient(bx, by, 0, bx, by, br)
         bg.addColorStop(0, 'rgba(255, 245, 220, 0.45)')
