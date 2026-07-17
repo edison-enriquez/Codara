@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
-  Mic, MicOff, Volume2, Loader2, X, Headphones,
+  Mic, MicOff, Volume2, Loader2, X, Headphones, Send,
 } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
 import { useVoiceTutor, resolveVoice } from '../context/VoiceTutorContext'
@@ -59,6 +59,7 @@ export default function VoiceTutor() {
   const [chat, setChat] = useState<ChatTurn[]>([])
   const [error, setError] = useState<string | null>(null)
   const [modelLoad, setModelLoad] = useState<LoadProgress | null>(null)
+  const [textDraft, setTextDraft] = useState('')
 
   const abortRef = useRef<AbortController | null>(null)
   const stoppingRef = useRef(false)
@@ -109,47 +110,52 @@ export default function VoiceTutor() {
     return msgs
   }
 
-  // ── Iniciar conversación: generar primera pregunta ────────────────────────
-  const startTutoring = useCallback(async () => {
-    if (!isConfigured) return
-    stoppingRef.current = false
-    setChat([])
-    chatRef.current = []
-    setError(null)
-    setModelLoad(null)
-    setMode('thinking')
+  // ── Enviar la respuesta del estudiante (voz o texto) al LLM ─────────────
+  const sendResponse = useCallback(async (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
 
-    const messages = buildLLMMessages(
-      'Inicia la tutoría. Formula UNA pregunta abierta para evaluar mi comprensión de la lección. Responde SOLO con la pregunta, nada más.'
-    )
+    // Detener escucha si estaba activa
+    sr.stop()
+    if (ttsSupported) window.speechSynthesis.cancel()
+
+    const isFirst = chatRef.current.length === 0
+
+    // Guardar la respuesta del estudiante en el historial
+    chatRef.current = [...chatRef.current, { role: 'student', text: trimmed }]
+    setChat([...chatRef.current])
+    setTextDraft('')
+    stoppingRef.current = false
+    setMode('thinking')
+    setError(null)
+
+    const userMsg = isFirst
+      ? 'Inicia la tutoría. Mi primera respuesta es: ' + trimmed
+      : trimmed
+    const messages = buildLLMMessages(userMsg)
 
     abortRef.current?.abort()
     abortRef.current = new AbortController()
     try {
-      const text = (await completeLLM(
+      const reply = (await completeLLM(
         configRef.current, messages, abortRef.current.signal,
         (p) => setModelLoad(p.progress >= 1 ? null : p)
       )).trim().replace(/^["“'"']+|["”'"']+$/g, '')
 
       if (stoppingRef.current) return
-      chatRef.current = [...chatRef.current, { role: 'tutor', text }]
+      chatRef.current = [...chatRef.current, { role: 'tutor', text: reply }]
       setChat([...chatRef.current])
       setMode('speaking')
-      speak(text, voiceNameRef.current, () => {
-        if (!stoppingRef.current) {
-          setMode('listening')
-          sr.clearEnded()
-          sr.reset()
-          setTimeout(() => sr.start(), 80)
-        }
+      speak(reply, voiceNameRef.current, () => {
+        if (!stoppingRef.current) setMode('listening')
       })
     } catch (e: any) {
       if (e.name !== 'AbortError') {
-        setError(e.message ?? 'Error al iniciar la tutoría')
+        setError(e.message ?? 'Error al procesar la respuesta')
         setMode('idle')
       }
     }
-  }, [isConfigured, sr, voiceName])
+  }, [sr, ttsSupported])
 
   // ── Cuando el STT termina → enviar la respuesta del estudiante al LLM ────
   useEffect(() => {
@@ -160,51 +166,14 @@ export default function VoiceTutor() {
     const ans = sr.transcript.trim()
 
     if (!ans) {
-      // No capturó nada: permitir al usuario reintentar en vez de colgarse
-      setError('No te escuché. Pulsa el botón para responder de nuevo.')
+      // No capturó nada: permitir al usuario reintentar o escribir
+      setError('No te escuché. Escribe tu respuesta o pulsa el botón para hablar de nuevo.')
       setMode('finished')
       return
     }
 
-    // Guardar la respuesta del estudiante en el historial
-    chatRef.current = [...chatRef.current, { role: 'student', text: ans }]
-    setChat([...chatRef.current])
-    setMode('thinking')
-    setError(null)
-
-    ;(async () => {
-      const messages = buildLLMMessages(
-        'Esta es mi respuesta (transcrita de voz, puede tener errores): ' + ans
-      )
-      abortRef.current?.abort()
-      abortRef.current = new AbortController()
-      setModelLoad(null)
-      try {
-        const text = (await completeLLM(
-          configRef.current, messages, abortRef.current.signal,
-          (p) => setModelLoad(p.progress >= 1 ? null : p)
-        )).trim().replace(/^["“'"']+|["”'"']+$/g, '')
-
-        if (stoppingRef.current) return
-        chatRef.current = [...chatRef.current, { role: 'tutor', text }]
-        setChat([...chatRef.current])
-        setMode('speaking')
-        speak(text, voiceNameRef.current, () => {
-          if (!stoppingRef.current) {
-            setMode('listening')
-            sr.clearEnded()
-            sr.reset()
-            setTimeout(() => sr.start(), 80)
-          }
-        })
-      } catch (e: any) {
-        if (e.name !== 'AbortError') {
-          setError(e.message ?? 'Error al procesar la respuesta')
-          setMode('idle')
-        }
-      }
-    })()
-  }, [mode, sr.isListening, sr.ended, sr.transcript])
+    sendResponse(ans)
+  }, [mode, sr.isListening, sr.ended, sr.transcript, sendResponse])
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (!ttsSupported || !lessonContent.trim()) return null
@@ -218,34 +187,19 @@ export default function VoiceTutor() {
       openSettings()
       return
     }
-    if (mode === 'idle' || mode === 'finished') {
-      if (error && !sr.transcript) { sr.clearEnded(); sr.reset() }
-      startTutoring()
-    } else if (listening) {
+    // El botón de voz solo controla el micrófono, no inicia la tutoría
+    // (el inicio se hace escribiendo o con el botón correspondiente)
+    if (listening) {
       sr.stop()
-    } else if (mode === 'listening' && !sr.isListening) {
-      // El STT terminó sin captura, reintentar
+    } else if (mode === 'listening' || mode === 'idle' || mode === 'finished') {
+      // (Re)iniciar escucha
+      stoppingRef.current = false
       sr.clearEnded()
       sr.reset()
-      sr.start()
-    } else {
-      stopAll()
+      setMode('listening')
+      setTimeout(() => sr.start(), 80)
     }
   }
-
-  const mainLabel = !isConfigured
-    ? 'Configurar agente IA'
-    : mode === 'idle'
-      ? (chat.length > 0 ? 'Reanudar tutoría' : 'Empezar tutoría')
-      : mode === 'finished'
-        ? 'Responder de nuevo'
-        : listening
-          ? 'Terminé de hablar'
-          : busy
-            ? 'Pensando…'
-            : speaking
-              ? 'Hablando…'
-              : 'Detener'
 
   return (
     <>
@@ -305,7 +259,7 @@ export default function VoiceTutor() {
               {/* Intro cuando no hay conversación */}
               {mode === 'idle' && chat.length === 0 && (
                 <div className="rounded-lg border border-border bg-base p-4 text-center text-xs text-muted">
-                  Pulsa <span className="font-semibold text-purple">Empezar tutoría</span> y el agente iniciará una conversación: formulará una pregunta, escuchará tu respuesta y continuará el diálogo basándose en lo que digas.
+                  Escribe abajo o pulsa <span className="font-semibold text-purple">Hablar</span> para iniciar. El tutor conversará contigo, evaluará tus respuestas y hará preguntas de seguimiento sobre esta lección.
                 </div>
               )}
 
@@ -379,23 +333,55 @@ export default function VoiceTutor() {
           </>
         </div>
 
-        {/* Footer con acción principal */}
-        <div className="border-t border-border p-4">
-          <button
-            onClick={handleMainClick}
-            disabled={busy}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50 ${
-              listening
-                ? 'border-red/50 bg-red/10 text-red hover:bg-red/20'
-                : 'border-purple/40 bg-purple/10 text-purple hover:bg-purple/20'
-            }`}
-          >
-            {busy ? <Loader2 size={15} className="animate-spin" />
-              : listening ? <MicOff size={15} />
-              : <Mic size={15} />}
-            <Volume2 size={15} />
-            <span>{mainLabel}</span>
-          </button>
+        {/* Footer: input de texto + botones deacción */}
+        <div className="border-t border-border p-4 space-y-2">
+          {/* Input de texto para responder como chat */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={textDraft}
+              onChange={(e) => setTextDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (!isConfigured) { openSettings(); return }
+                  if (!busy && textDraft.trim()) sendResponse(textDraft)
+                }
+              }}
+              placeholder={chat.length === 0 ? 'Escribe para iniciar…' : 'Escribe tu respuesta…'}
+              disabled={busy}
+              className="flex-1 rounded-lg border border-border bg-base px-3 py-2.5 text-sm text-text placeholder:text-muted/60 focus:border-purple/50 focus:outline-none disabled:opacity-50"
+              aria-label="Respuesta de texto"
+            />
+            <button
+              onClick={() => {
+                if (!isConfigured) { openSettings(); return }
+                if (!busy && textDraft.trim()) sendResponse(textDraft)
+              }}
+              disabled={busy || !textDraft.trim()}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-purple/40 bg-purple/10 text-purple hover:bg-purple/20 disabled:opacity-40 transition-colors"
+              title="Enviar respuesta"
+              aria-label="Enviar respuesta"
+            >
+              <Send size={14} />
+            </button>
+          </div>
+
+          {/* Botón de voz */}
+          {sttSupported && (
+            <button
+              onClick={handleMainClick}
+              disabled={busy}
+              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+                listening
+                  ? 'border-red/50 bg-red/10 text-red hover:bg-red/20'
+                  : 'border-border text-muted hover:border-purple/40 hover:text-purple'
+              }`}
+            >
+              {listening ? <Loader2 size={15} className="animate-spin" /> : <Mic size={15} />}
+              <span>{listening ? 'Terminé de hablar' : 'Hablar'}</span>
+            </button>
+          )}
         </div>
       </aside>
     </>
