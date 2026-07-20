@@ -3,11 +3,13 @@ import { X, Key, Bot, ExternalLink, Eye, EyeOff, Cpu, Cloud, AlertTriangle } fro
 import { useAgent, type AgentProvider } from '../context/AgentContext'
 import { WEBLLM_MODELS } from '../utils/webllmClient'
 
+// Modelos de producción de Groq (chat). Lista verificada contra
+// https://console.groq.com/docs/models — Groq retira modelos con frecuencia.
 const GROQ_MODELS = [
   { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B · Versatile (recomendado)' },
-  { id: 'llama3-8b-8192',          label: 'Llama 3 8B · Rápido' },
-  { id: 'mixtral-8x7b-32768',      label: 'Mixtral 8x7B · Contexto largo' },
-  { id: 'gemma2-9b-it',            label: 'Gemma 2 9B · Ligero' },
+  { id: 'openai/gpt-oss-120b',     label: 'GPT OSS 120B · Razonamiento' },
+  { id: 'llama-3.1-8b-instant',    label: 'Llama 3.1 8B · Rápido' },
+  { id: 'openai/gpt-oss-20b',      label: 'GPT OSS 20B · Ultrarrápido' },
 ]
 
 export default function AgentSettings() {

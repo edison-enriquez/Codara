@@ -37,11 +37,25 @@ export function detectWebGPU(): boolean {
   return typeof navigator !== 'undefined' && 'gpu' in navigator
 }
 
+/** Modelos retirados por Groq → reemplazo vigente (Groq cambia de modelos a menudo). */
+const GROQ_MODEL_MIGRATION: Record<string, string> = {
+  'llama3-8b-8192': 'llama-3.1-8b-instant',
+  'llama3-70b-8192': 'llama-3.3-70b-versatile',
+  'llama-3.1-70b-versatile': 'llama-3.3-70b-versatile',
+  'mixtral-8x7b-32768': 'llama-3.3-70b-versatile',
+  'gemma2-9b-it': 'llama-3.1-8b-instant',
+  'gemma-7b-it': 'llama-3.1-8b-instant',
+}
+
 function loadConfig(): AgentConfig {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
     // Migración del formato antiguo { apiKey, model } → groqModel
     if (saved.model && !saved.groqModel) saved.groqModel = saved.model
+    // Migración de modelos de Groq retirados (decommissioned)
+    if (saved.groqModel && saved.groqModel in GROQ_MODEL_MIGRATION) {
+      saved.groqModel = GROQ_MODEL_MIGRATION[saved.groqModel]
+    }
     return { ...DEFAULTS, ...saved }
   } catch {
     return DEFAULTS
