@@ -41,11 +41,12 @@ export default function CoursePage() {
   const prevLesson = currentIdx > 0 ? course.lessons[currentIdx - 1] : null
   const nextLesson = currentIdx < course.lessons.length - 1 ? course.lessons[currentIdx + 1] : null
   const isLab = currentLessonMeta?.type === 'lab' || lesson?.meta?.type === 'lab'
+  const hasEmbeddedFrame = lesson?.displayContent.includes('<iframe') ?? false
 
   return (
     <div className="flex h-[calc(100vh-56px)] flex-col overflow-hidden">
       {/* ── Toolbar superior: breadcrumb + navegación prev/next ──────────── */}
-      <div className="flex items-center gap-2 border-b border-border bg-base px-4 py-2">
+      <div className="flex items-center gap-2 border-b border-border bg-base px-3 py-2 sm:px-4">
         {/* Breadcrumb */}
         <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-xs">
           <Link to="/" className="shrink-0 text-muted hover:text-green transition-colors">Cursos</Link>
@@ -94,7 +95,7 @@ export default function CoursePage() {
             {course.notebook ? (
               <NotebookView lesson={lesson} />
             ) : (
-              <div className="mx-auto max-w-3xl px-6 pb-16 pt-8">
+              <div className={`mx-auto w-full pb-16 pt-8 ${hasEmbeddedFrame ? 'max-w-7xl px-4 sm:px-6' : 'max-w-3xl px-6'}`}>
                 {/* Lesson header */}
                 <div className="mb-6 border-b border-border pb-6">
                   <div className="mb-2 flex items-center gap-2 text-xs text-muted uppercase tracking-widest">
@@ -114,7 +115,7 @@ export default function CoursePage() {
               {prevLesson ? (
                 <Link
                   to={`/course/${courseId}/${prevLesson.id}`}
-                  className="flex items-center gap-1.5 border border-border px-4 py-2 text-xs text-muted hover:border-green/40 hover:text-text uppercase tracking-wider transition-colors"
+                  className="flex max-w-[48%] items-center gap-1.5 truncate border border-border px-2 py-2 text-xs text-muted hover:border-green/40 hover:text-text uppercase tracking-wider transition-colors sm:max-w-none sm:px-4"
                 >
                   <ChevronLeft size={14} />
                   {cleanTitle(prevLesson.title)}
@@ -122,7 +123,7 @@ export default function CoursePage() {
               ) : (
                 <Link
                   to={`/course/${courseId}`}
-                  className="flex items-center gap-1.5 border border-border px-4 py-2 text-xs text-muted hover:border-green/40 hover:text-text uppercase tracking-wider transition-colors"
+                  className="flex max-w-[48%] items-center gap-1.5 truncate border border-border px-2 py-2 text-xs text-muted hover:border-green/40 hover:text-text uppercase tracking-wider transition-colors sm:max-w-none sm:px-4"
                 >
                   <ChevronLeft size={14} />
                   Índice del curso
@@ -131,7 +132,7 @@ export default function CoursePage() {
               {nextLesson ? (
                 <Link
                   to={`/course/${courseId}/${nextLesson.id}`}
-                  className="flex items-center gap-1.5 border border-green/50 bg-green/10 px-4 py-2 text-xs font-bold text-green hover:bg-green/20 uppercase tracking-wider transition-colors"
+                  className="flex max-w-[48%] items-center gap-1.5 truncate border border-green/50 bg-green/10 px-2 py-2 text-xs font-bold text-green hover:bg-green/20 uppercase tracking-wider transition-colors sm:max-w-none sm:px-4"
                 >
                   {cleanTitle(nextLesson.title)}
                   <ChevronRight size={14} />
@@ -139,7 +140,7 @@ export default function CoursePage() {
               ) : (
                 <Link
                   to={`/course/${courseId}`}
-                  className="flex items-center gap-1.5 border border-green/50 bg-green/10 px-4 py-2 text-xs font-bold text-green hover:bg-green/20 uppercase tracking-wider transition-colors"
+                  className="flex max-w-[48%] items-center gap-1.5 truncate border border-green/50 bg-green/10 px-2 py-2 text-xs font-bold text-green hover:bg-green/20 uppercase tracking-wider transition-colors sm:max-w-none sm:px-4"
                 >
                   ¡Completado! Volver al índice
                 </Link>

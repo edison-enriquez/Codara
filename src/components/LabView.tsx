@@ -53,9 +53,9 @@ export default function LabView({ lesson, courseId, prevLesson, nextLesson }: Pr
   const { isConfigured } = useAgent()
 
   return (
-    <div className="flex h-full flex-col overflow-hidden lg:flex-row">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden lg:flex-row">
       {/* ── Left: description ──────────────────────────────────────────── */}
-      <div className="flex w-full flex-col overflow-y-auto border-b border-border lg:w-2/5 lg:border-b-0 lg:border-r">
+      <div className="flex h-[38%] min-h-0 w-full flex-col overflow-y-auto border-b border-border lg:h-auto lg:w-2/5 lg:border-b-0 lg:border-r">
         <div className="flex-1 p-5">
           <div className="mb-1 flex items-center gap-2 flex-wrap">
             <span className="rounded bg-blue/15 px-2 py-0.5 text-xs font-medium text-blue">Lab</span>
@@ -97,17 +97,17 @@ export default function LabView({ lesson, courseId, prevLesson, nextLesson }: Pr
       {/* ── Right: editor + tests ──────────────────────────────────────── */}
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Editor toolbar */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2 sm:px-4">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-muted capitalize">{lang}</span>
             {isCLang && (
               <span className="text-xs text-muted/60">· compilado en servidor</span>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs text-muted hover:bg-elevated hover:text-text transition-colors"
+              className="flex items-center gap-1.5 rounded px-2 py-1.5 text-xs text-muted hover:bg-elevated hover:text-text transition-colors sm:px-3"
             >
               <RotateCcw size={12} />
               Reiniciar
@@ -115,7 +115,7 @@ export default function LabView({ lesson, courseId, prevLesson, nextLesson }: Pr
             <button
               onClick={handleRun}
               disabled={state === 'running' || !hasTests}
-              className="flex items-center gap-2 rounded bg-blue px-4 py-1.5 text-xs font-medium text-base hover:bg-blue/80 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 rounded bg-blue px-2.5 py-1.5 text-xs font-medium text-base hover:bg-blue/80 disabled:opacity-50 transition-colors sm:px-4"
             >
               {state === 'running' ? (
                 <>
@@ -143,7 +143,7 @@ export default function LabView({ lesson, courseId, prevLesson, nextLesson }: Pr
         </div>
 
         {/* Nav inferior — siempre visible */}
-        <div className="shrink-0 flex items-center justify-between border-t border-border bg-surface px-4 py-2">
+        <div className="shrink-0 flex items-center justify-between border-t border-border bg-surface px-3 py-2 sm:px-4">
           {prevLesson ? (
             <Link
               to={`/course/${courseId}/${prevLesson.id}`}

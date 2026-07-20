@@ -1,0 +1,14 @@
+{
+  "id": "slidev-demo",
+  "title": "Introducción a Slidev",
+  "description": "Curso de prueba presentado como diapositivas interactivas creadas con Slidev.",
+  "difficulty": "beginner",
+  "language": "javascript",
+  "category": "Herramientas",
+  "icon": "Presentation",
+  "estimatedTime": "10 minutos",
+  "tags": ["Slidev", "diapositivas", "Markdown"],
+  "lessons": [
+    "01-presentacion.md"
+  ]
+}

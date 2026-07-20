@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
-import { Terminal, FileJson, Code2, FlaskConical, BookOpen, Clock, ArrowRight, type LucideIcon } from 'lucide-react'
+import { Terminal, FileJson, Code2, Presentation, FlaskConical, BookOpen, Clock, ArrowRight, type LucideIcon } from 'lucide-react'
 import type { CourseSummary } from '../types'
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Terminal,
   FileJson,
   Code2,
+  Presentation,
 }
 
 const DIFFICULTY_STYLE: Record<string, string> = {

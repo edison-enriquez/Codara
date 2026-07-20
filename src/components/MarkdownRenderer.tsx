@@ -7,6 +7,7 @@ import { highlightCode } from '../utils/highlight'
 import type { Segment } from '../types'
 import { segmentMarkdown } from '../utils/courseLoader'
 import type { TutorMark } from '../context/VoiceTutorContext'
+import { useSlideController } from '../context/SlideControllerContext'
 
 interface Props {
   content: string
@@ -53,6 +54,27 @@ function normalizeRegex(ref: string): RegExp | null {
   return new RegExp(pattern, 'i')
 }
 
+function findNormalizedRange(source: string, reference: string): { start: number; end: number } | null {
+  const normalizedChars: string[] = []
+  const sourceIndexes: number[] = []
+  for (let i = 0; i < source.length; i++) {
+    const normalized = source[i].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const value = /[a-z0-9ñ]/.test(normalized) ? normalized : ' '
+    for (const char of value) {
+      normalizedChars.push(char)
+      sourceIndexes.push(i)
+    }
+  }
+  const parts = normalize(reference).split(' ').filter(Boolean)
+  if (!parts.length) return null
+  const pattern = new RegExp(parts.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'))
+  const match = pattern.exec(normalizedChars.join(''))
+  if (!match || match.index < 0) return null
+  const start = sourceIndexes[match.index]
+  const endIndex = match.index + match[0].length - 1
+  return { start, end: sourceIndexes[endIndex] + 1 }
+}
+
 interface Range { start: number; end: number; style: 'highlight' | 'underline'; key: string }
 
 /** Busca todos los rangos donde las marcas aparecen en un segmento de prosa. */
@@ -67,6 +89,11 @@ function findMarkRanges(segContent: string, marks: TutorMark[]): Range[] {
     if (m && m.index >= 0) {
       ranges.push({ start: m.index, end: m.index + m[0].length, style: mk.style, key: `mk-${mi}` })
     } else {
+      const normalizedRange = findNormalizedRange(segContent, mk.text)
+      if (normalizedRange) {
+        ranges.push({ ...normalizedRange, style: mk.style, key: `mk-${mi}` })
+        continue
+      }
       // fallback: buscar la primera palabra clave (>=4 chars)
       const words = normalize(mk.text).split(' ').filter((w) => w.length >= 4)
       for (const w of words) {
@@ -107,37 +134,53 @@ function insertMarks(markdown: string, ranges: Range[]): string {
   return result
 }
 
+function SlidevIframe({ src, ...props }: React.IframeHTMLAttributes<HTMLIFrameElement>) {
+  const { iframeRef } = useSlideController()
+  return (
+    <iframe
+      ref={iframeRef}
+      {...props}
+      src={src?.startsWith('/slides/') ? `${import.meta.env.BASE_URL}${src.slice(1)}` : src}
+    />
+  )
+}
+
 export default function MarkdownRenderer({ content, marks }: Props) {
   const segments = segmentMarkdown(content)
   const activeMarks = marks ?? []
-  const activeIdx = activeMarks.length
-    ? segments.findIndex((s) => s.type === 'prose' && segmentMatchesAnyMark(s.content, activeMarks))
-    : -1
+  const activeIndexes = useMemo(() => activeMarks.length
+    ? segments.reduce<number[]>((indexes, segment, index) => {
+        if (segment.type === 'prose' && segmentMatchesAnyMark(segment.content, activeMarks)) indexes.push(index)
+        return indexes
+      }, [])
+    : [], [segments, activeMarks])
 
-  // Rangos exactos de las marcas dentro del segmento activo
-  const activeRanges = useMemo(() => {
-    if (activeIdx < 0 || !activeMarks.length) return []
-    const seg = segments[activeIdx]
-    if (seg.type !== 'prose') return []
-    return findMarkRanges(seg.content, activeMarks)
-  }, [activeIdx, activeMarks, segments])
+  const rangesByIndex = useMemo(() => {
+    const ranges = new Map<number, Range[]>()
+    for (const index of activeIndexes) {
+      const segment = segments[index]
+      if (segment.type === 'prose') ranges.set(index, findMarkRanges(segment.content, activeMarks))
+    }
+    return ranges
+  }, [activeIndexes, activeMarks, segments])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (activeIdx < 0) return
-    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-chunk="${activeIdx}"]`)
+    if (!activeIndexes.length) return
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-chunk="${activeIndexes[0]}"]`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [activeIdx])
+  }, [activeIndexes])
 
   return (
     <div className="lesson-prose" ref={scrollRef}>
       {segments.map((seg, idx) => {
-        const isActive = idx === activeIdx
+        const isActive = activeIndexes.includes(idx)
         switch (seg.type) {
           case 'prose': {
-            const proseWithMarks = isActive && activeRanges.length
-              ? insertMarks(seg.content, activeRanges)
+            const ranges = rangesByIndex.get(idx) ?? []
+            const proseWithMarks = ranges.length
+              ? insertMarks(seg.content, ranges)
               : seg.content
             return (
               <div
@@ -247,6 +290,9 @@ const mdComponents = {
     <a href={href} target="_blank" rel="noreferrer" className="text-blue underline underline-offset-2 hover:text-blue/80">
       {children}
     </a>
+  ),
+  iframe: ({ src, ...props }: React.IframeHTMLAttributes<HTMLIFrameElement>) => (
+    <SlidevIframe src={src} {...props} />
   ),
   code: ({ children, className }: React.HTMLAttributes<HTMLElement>) => {
     // Inline code (no className) vs block code (has className)

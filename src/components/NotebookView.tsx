@@ -66,17 +66,17 @@ export default function NotebookView({ lesson }: { lesson: ParsedLesson }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 pb-16 pt-4">
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-4 sm:px-6">
       {/* Toolbar del notebook */}
-      <div className="sticky top-0 z-10 -mx-6 mb-5 flex items-center gap-2 border-b border-border bg-base/95 px-6 py-2 backdrop-blur">
-        <span className="mr-auto flex items-center gap-1.5 text-xs text-muted">
+      <div className="sticky top-0 z-10 -mx-4 mb-5 flex flex-wrap items-center gap-2 border-b border-border bg-base/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:flex-nowrap sm:px-6">
+        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted sm:mr-auto">
           <span className="h-2 w-2 rounded-full bg-blue" />
-          Notebook · Python (Pyodide)
+          <span className="truncate">Notebook · Python (Pyodide)</span>
         </span>
         <button
           onClick={runAll}
           disabled={runningAll || running !== null}
-          className="flex items-center gap-1.5 rounded border border-blue/40 bg-blue/10 px-3 py-1 text-xs font-medium text-blue hover:bg-blue/20 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 rounded border border-blue/40 bg-blue/10 px-2.5 py-1 text-xs font-medium text-blue hover:bg-blue/20 disabled:opacity-50 transition-colors sm:px-3"
         >
           {runningAll ? <Loader2 size={12} className="animate-spin" /> : <ChevronsRight size={12} />}
           Ejecutar todo
@@ -84,7 +84,7 @@ export default function NotebookView({ lesson }: { lesson: ParsedLesson }) {
         <button
           onClick={resetKernel}
           disabled={runningAll || running !== null}
-          className="flex items-center gap-1.5 rounded border border-border px-3 py-1 text-xs text-muted hover:text-text disabled:opacity-50 transition-colors"
+          className="flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-xs text-muted hover:text-text disabled:opacity-50 transition-colors sm:px-3"
           title="Limpiar variables del kernel"
         >
           <RotateCcw size={12} />

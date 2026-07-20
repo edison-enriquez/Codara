@@ -9,6 +9,7 @@ import { useTheme, ThemeContext } from './hooks/useTheme'
 import { AuthProvider } from './context/AuthContext'
 import { AgentProvider, useAgent } from './context/AgentContext'
 import { VoiceTutorProvider } from './context/VoiceTutorContext'
+import { SlideControllerProvider } from './context/SlideControllerContext'
 import VoiceTutor from './components/VoiceTutor'
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
@@ -61,9 +62,11 @@ export default function App() {
         <AuthProvider>
           <AgentProvider>
             <VoiceTutorProvider>
-              <BrowserRouter basename="/Codara">
-                <AppShell theme={theme} toggle={toggle} />
-              </BrowserRouter>
+              <SlideControllerProvider>
+                <BrowserRouter basename="/Codara">
+                  <AppShell theme={theme} toggle={toggle} />
+                </BrowserRouter>
+              </SlideControllerProvider>
             </VoiceTutorProvider>
           </AgentProvider>
         </AuthProvider>

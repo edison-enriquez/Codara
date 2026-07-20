@@ -29,6 +29,31 @@ npm run dev
 
 La app estará disponible en `http://localhost:5173`.
 
+## Publicar en GitHub Pages
+
+Cada push a `main` ejecuta `.github/workflows/deploy.yml`, genera el contenido y
+las diapositivas, compila la aplicación y la publica en:
+
+`https://edison-enriquez.github.io/Codara/`
+
+En la configuración del repositorio, **Settings → Pages** debe usar **GitHub
+Actions** como origen de despliegue. También se puede iniciar el workflow
+manualmente desde **Actions → Deploy to GitHub Pages → Run workflow**.
+
+## Presentaciones Slidev
+
+El curso de prueba **Introducción a Slidev** incrusta una presentación generada con [Slidev](https://sli.dev/guide/). Su fuente está en [`slides/curso-slidev-prueba/slides.md`](slides/curso-slidev-prueba/slides.md).
+
+```bash
+# Editar y previsualizar la presentación con Slidev
+npm run dev:slides
+
+# Exportar la presentación estática que muestra el curso
+npm run build:slides
+```
+
+Los comandos `npm run dev` y `npm run build` exportan las diapositivas automáticamente.
+
 ## Arquitectura de contenido
 
 El contenido sigue tres capas: **fuente cruda → contenido canónico → manifiesto generado**. La app solo consume el manifiesto.

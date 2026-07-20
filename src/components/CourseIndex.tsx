@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Terminal, FileJson, Code2, Search, CheckCircle2, Circle, BookOpen, FlaskConical, ChevronLeft, Play, Users, X, type LucideIcon } from 'lucide-react'
+import { Terminal, FileJson, Code2, Presentation, Search, CheckCircle2, Circle, BookOpen, FlaskConical, ChevronLeft, Play, Users, X, type LucideIcon } from 'lucide-react'
 import { isComplete, cleanTitle } from '../utils/courseLoader'
 import { fetchCounts } from '../utils/passedCounts'
 import type { CourseData, LessonMeta } from '../types'
@@ -18,6 +18,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Terminal,
   FileJson,
   Code2,
+  Presentation,
 }
 
 // TODO(usuarios): desbloqueo secuencial / candados por reto. Diferido hasta que
@@ -81,7 +82,7 @@ export default function CourseIndex({ course, courseId }: { course: CourseData; 
             })()}
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold text-text">{course.title}</h1>
+            <h1 className="break-words text-xl font-bold text-text sm:text-2xl">{course.title}</h1>
             <p className="mt-1 text-sm text-muted">{course.description}</p>
           </div>
         </div>

@@ -24,6 +24,9 @@ build/
 # Contenido generado por scripts/build-content.mjs (fuente: content/)
 public/courses/
 
+# Presentaciones Slidev exportadas (fuente: slides/)
+public/slides/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -40,3 +43,5 @@ coverage/
 *.tmp
 *.swp
 +
+
+*.zip

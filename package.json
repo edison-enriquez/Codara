@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "build:content": "node scripts/build-content.mjs",
-    "predev": "npm run build:content",
+    "dev:slides": "slidev slides/curso-slidev-prueba/slides.md --open",
+    "build:slides": "slidev build slides/curso-slidev-prueba/slides.md --out ../../public/slides/curso-slidev-prueba --base /Codara/slides/curso-slidev-prueba/",
+    "predev": "npm run build:content && npm run build:slides",
     "dev": "vite",
     "dev:server": "node --env-file=server/.env.server server/sandbox.mjs",
     "dev:all": "concurrently -n FE,BE -c blue,green \"vite\" \"node --env-file=server/.env.server server/sandbox.mjs\"",
-    "prebuild": "npm run build:content",
+    "prebuild": "npm run build:content && npm run build:slides",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
@@ -28,6 +30,8 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@slidev/cli": "^52.18.0",
+    "@slidev/theme-default": "^0.25.0",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",

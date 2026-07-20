@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense, type ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Mic, Loader2, X, Headphones, Send,
 } from 'lucide-react'
@@ -7,7 +8,11 @@ import { useVoiceTutor, resolveVoice } from '../context/VoiceTutorContext'
 import { completeLLM, type Message, type LoadProgress } from '../utils/llmClient'
 import { extractReadableChunks } from '../utils/speechText'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { executeSlideAction, parseSlideAction } from '../utils/slideController'
+import { useSlideController } from '../context/SlideControllerContext'
 import VoicePicker from './VoicePicker'
+import { markComplete } from '../utils/courseLoader'
+import { useCourseData } from '../hooks/useCourses'
 
 const VoiceOrbThree = lazy(() => import('./VoiceOrbThree'))
 
@@ -33,13 +38,21 @@ Reglas:
 - Cuando el estudiante responda, evalúa su comprensión y responde de forma natural.
 - Si la respuesta es correcta, felicita brevemente y haz una pregunta de seguimiento.
 - Si la respuesta es incorrecta o incompleta, corrige con tono amable y reformula.
+- No avances de lección hasta que el estudiante demuestre comprensión o pida explícitamente continuar.
+- Cuando el estudiante esté listo para continuar, termina tu respuesta con "advance": true; en cualquier otro caso usa "advance": false.
 - Sé CONVERSACIONAL y dinámico: usa frases como "mira, aquí en la lección dice...", "como puedes ver...", "fíjate en este punto...". Referencia visualmente el contenido.
 - Sé breve, claro y alentador. Usa lenguaje sencillo. Responde SIEMPRE en español.
+
+Control de presentaciones embebidas:
+- Si la lección incluye una presentación Slidev (iframe), puedes indicar al tutor que avance diapositivas.
+- Si la lección contiene una presentación Slidev, puedes cambiar de diapositiva devolviendo un campo "action" con: "nextSlide", "prevSlide" o "goToSlide:N" (donde N es el número de diapositiva, empezando en 1). Usa esto cuando digas frases como "veamos la siguiente diapositiva" o "vuelve a la anterior".
+- La acción se ejecuta después de que termines de hablar, sin interrumpir.
 
 Puedes RESALTAR partes específicas del contenido de la lección para guiar al estudiante:
 - Usa "highlight" (resaltador amarillo) para frases o definiciones importantes que quieras mostrar.
 - Usa "underline" (subrayado) para palabras clave, términos técnicos o conceptos que quieras enfatizar.
-- Puedes marcar varias partes a la vez (varias entradas en el array "marks").
+- Marca como máximo 3 partes: una frase o definición con "highlight" y hasta dos palabras clave con "underline".
+- Elige únicamente fragmentos relacionados con lo que acabas de explicar, para que el texto acompañe a tu voz y no se convierta en ruido visual.
 - Las marcas deben ser citas EXACTAS (copiadas tal cual) del contenido de la lección.
 
 FORMATO DE RESPUESTA (obligatorio, SIEMPRE):
@@ -49,10 +62,13 @@ Responde con un objeto JSON válido, sin markdown, sin texto fuera del JSON:
   "marks": [
     { "text": "cita exacta del contenido a resaltar con marcador", "style": "highlight" },
     { "text": "palabra clave a subrayar", "style": "underline" }
-  ]
+  ],
+  "advance": false,
+  "action": null
 }
 - "marks" puede ser un array vacío [] si no hay nada que marcar.
 - "style" solo puede ser "highlight" o "underline".
+- "action" puede ser null, o uno de: "nextSlide", "prevSlide", "goToSlide:N" (donde N es número).
 - NUNCA uses etiquetas como ==UL==...==/UL==, ==HL==...==/HL==, &lt;mark&gt;, &lt;u&gt;, ni ningún otro marcador en el campo "speech". El resaltado se hace ÚNICAMENTE mediante el array "marks". Si pones esas etiquetas en "speech", el estudiante las verá escritas literalmente en el chat y no se resaltará nada.
 - Para verificar que tus marcas son correctas: el texto en "marks" debe aparecer EXACTAMENTE IGUAL en el contenido de la lección (mismas palabras, mismo orden). Si no estás seguro, usa "marks": [].`
 
@@ -61,26 +77,73 @@ interface Mark {
   style: 'highlight' | 'underline'
 }
 
-function parseSpeech(raw: string): { speech: string; marks: Mark[] } {
-  const m = raw.match(/\{[\s\S]*\}/)
-  if (m) {
-    try {
-      const o = JSON.parse(m[0])
-      if (typeof o.speech === 'string') {
-        let marks: Mark[] = []
-        if (Array.isArray(o.marks)) {
-          marks = o.marks
-            .filter((mk: any) => typeof mk?.text === 'string' && (mk?.style === 'highlight' || mk?.style === 'underline'))
-            .map((mk: any) => ({ text: mk.text.trim(), style: mk.style as 'highlight' | 'underline' }))
-        } else if (typeof o.reference === 'string') {
-          // retrocompatibilidad: reference única → highlight
-          marks = [{ text: o.reference.trim(), style: 'highlight' as const }]
-        }
-        return { speech: o.speech.trim(), marks }
+function extractJsonObjects(raw: string): string[] {
+  const source = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '')
+  const objects: string[] = []
+  let start = -1
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+      continue
+    }
+    if (char === '"') {
+      inString = true
+      continue
+    }
+    if (char === '{') {
+      if (depth === 0) start = i
+      depth++
+    } else if (char === '}' && depth > 0) {
+      depth--
+      if (depth === 0 && start >= 0) {
+        objects.push(source.slice(start, i + 1))
+        start = -1
       }
+    }
+  }
+  return objects
+}
+
+function parseSpeech(raw: string): { speech: string; marks: Mark[]; advance: boolean; action: string | null } {
+  const candidates = extractJsonObjects(raw)
+  for (const candidate of candidates) {
+    try {
+      const o = JSON.parse(candidate)
+      if (typeof o.speech !== 'string') continue
+
+      let marks: Mark[] = []
+      if (Array.isArray(o.marks)) {
+        marks = o.marks
+          .filter((mk: any) => typeof mk?.text === 'string' && (mk?.style === 'highlight' || mk?.style === 'underline'))
+          .map((mk: any) => ({ text: mk.text.trim(), style: mk.style as 'highlight' | 'underline' }))
+      } else if (typeof o.reference === 'string') {
+        // retrocompatibilidad: reference única → highlight
+        marks = [{ text: o.reference.trim(), style: 'highlight' as const }]
+      }
+      const action = typeof o.action === 'string' ? o.action : null
+      return { speech: o.speech.trim(), marks, advance: o.advance === true, action }
+    } catch {
+      // Algunos modelos locales generan JSON casi válido; probar el siguiente objeto.
+    }
+  }
+
+  // Recuperación para JSON truncado o con una coma inválida: evita mostrar el objeto entero.
+  const speechMatch = raw.match(/"speech"\s*:\s*"((?:\\.|[^"\\])*)/s)
+  if (speechMatch) {
+    try {
+      const speech = JSON.parse(`"${speechMatch[1]}"`)
+      if (typeof speech === 'string' && speech.trim()) return { speech: speech.trim(), marks: [], advance: false, action: null }
     } catch {}
   }
-  return { speech: raw.trim(), marks: [] }
+
+  return { speech: raw.trim(), marks: [], advance: false, action: null }
 }
 
 /** Extrae marcas que el agente puso directamente en el speech (tanto formato
@@ -166,27 +229,113 @@ function markIsValid(markText: string, lessonContent: string): boolean {
   return false
 }
 
-function speak(text: string, voiceName: string, onEnd?: () => void): void {
+const SPANISH_STOP_WORDS = new Set([
+  'ahora', 'antes', 'aquello', 'como', 'cuando', 'desde', 'donde', 'esta', 'este',
+  'estas', 'estos', 'hacia', 'hasta', 'luego', 'mientras', 'para', 'porque',
+  'puede', 'puedes', 'sobre', 'tambien', 'tiene', 'tienen', 'todo', 'todos',
+  'vamos', 'veras', 'muy', 'bien', 'solo', 'esta', 'ser', 'eso', 'aqui',
+])
+
+/** Recupera palabras del texto que el agente mencionó aunque no haya enviado marks. */
+function deriveMarksFromSpeech(speech: string, lessonContent: string, current: Mark[]): Mark[] {
+  const result = current.slice(0, 3)
+  if (result.length >= 3) return result
+
+  const sourceWords = extractReadableChunks(lessonContent)
+    .join(' ')
+    .match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{5,}/g) ?? []
+  const sourceByNormalized = new Map<string, string>()
+  for (const word of sourceWords) {
+    const normalized = norm(word)
+    if (!sourceByNormalized.has(normalized)) sourceByNormalized.set(normalized, word)
+  }
+
+  const spokenWords = norm(speech).split(' ').filter(
+    (word) => word.length >= 5 && !SPANISH_STOP_WORDS.has(word)
+  )
+  const existing = new Set(result.map((mark) => norm(mark.text)))
+  for (const word of spokenWords) {
+    const sourceWord = sourceByNormalized.get(word)
+    if (!sourceWord || existing.has(norm(sourceWord))) continue
+    result.push({ text: sourceWord, style: 'underline' })
+    existing.add(norm(sourceWord))
+    if (result.length >= 3) break
+  }
+  return result
+}
+
+function speak(text: string, voiceName: string, onEnd?: () => void, onError?: () => void): () => void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     onEnd?.()
-    return
+    return () => {}
   }
+  const cleanText = text.trim()
+  if (!cleanText) {
+    console.warn('[TTS] Texto vacío, no se reproduce nada')
+    onError?.()
+    return () => {}
+  }
+
+  let cancelled = false
+  let playTimer: number | undefined
+  const cancel = () => {
+    cancelled = true
+    if (playTimer !== undefined) window.clearTimeout(playTimer)
+    window.speechSynthesis.cancel()
+  }
+
   window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text)
-  const v = resolveVoice(voiceName)
-  if (v) u.voice = v
-  u.lang = v?.lang ?? 'es-ES'
-  u.rate = 0.98
-  u.pitch = 1
-  u.onend = () => onEnd?.()
-  u.onerror = () => onEnd?.()
-  window.speechSynthesis.speak(u)
+
+  const play = (voice: SpeechSynthesisVoice | null, attempt: number) => {
+    if (cancelled) return
+    console.log(`[TTS] Reproduciendo (${attempt}):`, cleanText.slice(0, 80), voice?.name ?? 'voz por defecto')
+    const u = new SpeechSynthesisUtterance(cleanText)
+    if (voice) {
+      u.voice = voice
+      u.lang = voice.lang
+    } else {
+      u.lang = 'es-ES'
+    }
+    u.rate = 0.98
+    u.pitch = 1
+    u.volume = 1
+    u.onend = () => {
+      if (cancelled) return
+      console.log('[TTS] Finalizó correctamente')
+      onEnd?.()
+    }
+    u.onerror = (e) => {
+      if (cancelled || e.error === 'canceled' || e.error === 'interrupted') return
+      console.warn('[TTS] Error:', e.error)
+      if (voice && attempt === 1) {
+        playTimer = window.setTimeout(() => play(resolveVoice(), 2), 0)
+        return
+      }
+      onError?.()
+    }
+    // En Chrome/Android el sintetizador a veces está pausado; forzar resume().
+    try { window.speechSynthesis.resume() } catch {}
+    window.speechSynthesis.speak(u)
+  }
+
+  // Ceder un ciclo tras cancel() para que Chrome acepte la nueva utterance sin introducir latencia visible.
+  playTimer = window.setTimeout(() => play(resolveVoice(voiceName), 1), 0)
+  return cancel
 }
 
 /** Botón flotante + panel lateral deslizable. Se renderiza globalmente. */
 export default function VoiceTutor() {
   const { config, isConfigured, openSettings } = useAgent()
   const { lessonContent, open, setOpen, voiceName, supported: ttsSupported, setMarks } = useVoiceTutor()
+  const { iframeRef } = useSlideController()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const routeMatch = location.pathname.match(/^\/course\/([^/]+)\/([^/]+)$/)
+  const courseId = routeMatch?.[1]
+  const lessonId = routeMatch?.[2]
+  const { course } = useCourseData(courseId)
+  const currentIdx = course?.lessons.findIndex((lesson) => lesson.id === lessonId) ?? -1
+  const nextLesson = currentIdx >= 0 ? course?.lessons[currentIdx + 1] : undefined
   const sr = useSpeechRecognition('es-ES')
 
   const [mode, setMode] = useState<Mode>('idle')
@@ -198,6 +347,7 @@ export default function VoiceTutor() {
   const [orbListenLevel, setOrbListenLevel] = useState(0)
 
   const abortRef = useRef<AbortController | null>(null)
+  const cancelSpeechRef = useRef<(() => void) | null>(null)
   const stoppingRef = useRef(false)
   const lessonCtxRef = useRef<string>('')
   const configRef = useRef(config)
@@ -270,12 +420,15 @@ export default function VoiceTutor() {
 
   useEffect(() => () => {
     abortRef.current?.abort()
+    cancelSpeechRef.current?.()
     if (ttsSupported) window.speechSynthesis.cancel()
   }, [ttsSupported])
 
   const stopAll = useCallback(() => {
     stoppingRef.current = true
     abortRef.current?.abort()
+    cancelSpeechRef.current?.()
+    cancelSpeechRef.current = null
     if (ttsSupported) window.speechSynthesis.cancel()
     sr.stop()
     setMode('idle')
@@ -310,6 +463,8 @@ setMarks([])
 
     // Detener escucha si estaba activa
     sr.stop()
+    cancelSpeechRef.current?.()
+    cancelSpeechRef.current = null
     if (ttsSupported) window.speechSynthesis.cancel()
 
     const isFirst = chatRef.current.length === 0
@@ -317,6 +472,7 @@ setMarks([])
     // Guardar la respuesta del estudiante en el historial
     chatRef.current = [...chatRef.current, { role: 'student', text: trimmed }]
     setChat([...chatRef.current])
+    setMarks([])
     setTextDraft('')
     stoppingRef.current = false
     setMode('thinking')
@@ -336,55 +492,58 @@ setMarks([])
       )).trim()
 
       if (stoppingRef.current) return
-      let { speech, marks } = parseSpeech(raw)
+      let { speech, marks, advance, action } = parseSpeech(raw)
       // Preservar texto original (con ==UL==/==HL== tags) para el display
       const rawDisplay = speech
       // Post-procesamiento: extraer tags del speech como marcas y limpiar para TTS
       const extracted = extractMarksFromSpeech(speech, marks)
-      const ttsText = extracted.cleanSpeech.replace(/^["“'"']+|["”'"']+$/g, '') || raw
+        const ttsText = extracted.cleanSpeech.replace(/^["“'"']+|["”'"']+$/g, '').trim()
       marks = extracted.allMarks
       // Para el chat mostramos el texto con los tags (renderChatText los estiliza)
       let text = rawDisplay.match(/==(HL|UL)==/)
         ? rawDisplay.replace(/^["“'"']+|["”'"']+$/g, '')
         : ttsText
 
-      // ── Auto-verificación: ¿las marcas del LLM están realmente en la lección? ──
-      const invalidMarks = marks.filter((mk) => mk.text.length > 4 && !markIsValid(mk.text, lessonContent))
-      if (invalidMarks.length > 0) {
-        const fixMsgs: Message[] = buildLLMMessages(
-          `${raw}\n\nAlgunas marcas que diste no aparecen en el contenido de la lección:\n` +
-          invalidMarks.map((mk) => `- "${mk.text}" (${mk.style})`).join('\n') +
-          `\n\nLas "text" de cada marca deben ser fragmentos VERBATIM copiados del contenido. ` +
-          `Vuelve a responder con el mismo JSON, corrigiendo las marcas para que coincidan exactamente con el texto de la lección. ` +
-          `Si no hay un fragmento adecuado, elimina esa marca del array.`
-        )
-        try {
-          const fixed = (await completeLLM(configRef.current, fixMsgs, abortRef.current.signal)).trim()
-          if (stoppingRef.current) return
-          if (fixed) {
-            const reparsed = parseSpeech(fixed)
-            if (reparsed.speech) { text = reparsed.speech }
-            if (reparsed.marks.length > 0) marks = reparsed.marks
-          }
-        } catch {
-          // si falla la corrección, seguir con las marcas originales
-        }
-      }
-
       // Filtrar solo las marcas válidas y setearlas para el renderer
       const validMarks = marks.filter((mk) => mk.text.length >= 3 && markIsValid(mk.text, lessonContent))
-      setMarks(validMarks)
+      setMarks(deriveMarksFromSpeech(speech, lessonContent, validMarks))
+
+      if (action) {
+        const slideAction = parseSlideAction(action)
+        if (slideAction) {
+          setTimeout(() => {
+            executeSlideAction(iframeRef.current, slideAction)
+          }, 500)
+        }
+      }
 
       chatRef.current = [...chatRef.current, { role: 'tutor', text }]
       setChat([...chatRef.current])
       setMode('speaking')
-      speak(ttsText, voiceNameRef.current, () => {
+      console.log('[VoiceTutor] Texto a hablar:', ttsText.slice(0, 120))
+      cancelSpeechRef.current = speak(ttsText, voiceNameRef.current, () => {
+        cancelSpeechRef.current = null
         if (!stoppingRef.current) {
+          if (advance && courseId && lessonId) {
+            markComplete(courseId, lessonId)
+            if (nextLesson) {
+              setOpen(false)
+              navigate(`/course/${courseId}/${nextLesson.id}`)
+              return
+            }
+            setMode('finished')
+            return
+          }
           setMode('listening')
+          setMarks([])
           sr.clearEnded()
           sr.reset()
           setTimeout(() => sr.start(), 80)
         }
+        }, () => {
+          cancelSpeechRef.current = null
+          setError('No se pudo reproducir la voz. Pulsa la muestra de voz para comprobar el audio del navegador.')
+          setMode('finished')
       })
     } catch (e: any) {
       if (e.name !== 'AbortError') {
@@ -393,7 +552,7 @@ setMarks([])
         setMarks([])
       }
     }
-  }, [sr, ttsSupported, setMarks])
+  }, [sr, ttsSupported, setMarks, courseId, lessonId, nextLesson, navigate, setOpen])
 
   // (sin VAD externo: la detección de fin de habla se basa en el STT)
 
