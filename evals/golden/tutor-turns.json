@@ -1,0 +1,132 @@
+{
+  "description": "Golden set del agente tutor. Casos deterministas (modelResponses) corren en `npm test` con un LLM inyectado; casos `live: true` corren con `npm run eval:tutor` y GROQ_API_KEY contra el modelo real, evaluados por un LLM juez.",
+  "lesson": "Introducción a las estructuras de datos básicas de JavaScript.\n\n## Variables\n\nUna variable es un contenedor para guardar datos. Se declara con la palabra clave let y puede cambiar de valor.\n\n## Constantes\n\nLas constantes se declaran con const y no se pueden reasignar después de su declaración.\n\n## Funciones\n\nUna función agrupa instrucciones para reutilizarlas. Se define con la palabra clave function o como función flecha.\n",
+  "cases": [
+    {
+      "id": "valid-turn",
+      "description": "Turno válido a la primera: veredicto y marcas correctas",
+      "studentText": "una variable es un contenedor para guardar datos",
+      "modelResponses": [
+        "{\"speech\": \"¡Exacto! Una variable guarda datos. ¿Y con qué palabra clave se declara?\", \"marks\": [{\"text\": \"contenedor para guardar datos\", \"style\": \"highlight\"}], \"advance\": false, \"action\": null, \"verdict\": \"correct\"}"
+      ],
+      "expect": { "attempts": 1, "verdict": "correct", "marksCount": 1, "advance": false }
+    },
+    {
+      "id": "invented-marks-rejected",
+      "description": "Las marcas inventadas que no citan la lección se descartan y se cuentan",
+      "studentText": "no entiendo el hoisting",
+      "modelResponses": [
+        "{\"speech\": \"Veamos el contenido de la lección.\", \"marks\": [{\"text\": \"el hoisting eleva las declaraciones\", \"style\": \"highlight\"}, {\"text\": \"los closures capturan el ámbito\", \"style\": \"underline\"}], \"advance\": false, \"action\": null, \"verdict\": null}"
+      ],
+      "expect": { "marksCount": 0, "metrics": { "marksRejected": 2 } }
+    },
+    {
+      "id": "gate-blocks-unjustified-advance",
+      "description": "El gate bloquea un advance pedido por el modelo sin evidencia",
+      "studentText": "no lo tengo nada claro",
+      "studentTurns": 1,
+      "modelResponses": [
+        "{\"speech\": \"Vamos a repasarlo de nuevo.\", \"marks\": [], \"advance\": true, \"action\": null, \"verdict\": \"incorrect\"}"
+      ],
+      "expect": { "advance": true, "verdict": "incorrect", "gate": { "allowed": false, "reason": "insufficient-evidence" } }
+    },
+    {
+      "id": "gate-allows-explicit-continue",
+      "description": "El gate permite el avance cuando el estudiante lo pide explícitamente",
+      "studentText": "vale, pasemos a la siguiente lección",
+      "studentTurns": 3,
+      "modelResponses": [
+        "{\"speech\": \"Perfecto, avancemos.\", \"marks\": [], \"advance\": true, \"action\": null, \"verdict\": null}"
+      ],
+      "expect": { "advance": true, "gate": { "allowed": true, "reason": "explicit-continue" } }
+    },
+    {
+      "id": "gate-allows-comprehension-evidence",
+      "description": "El gate permite el avance con evidencia de comprensión (verdict correct)",
+      "studentText": "las constantes se declaran con const",
+      "studentTurns": 2,
+      "modelResponses": [
+        "{\"speech\": \"¡Muy bien! Lo has entendido.\", \"marks\": [], \"advance\": true, \"action\": null, \"verdict\": \"correct\"}"
+      ],
+      "expect": { "advance": true, "gate": { "allowed": true, "reason": "comprehension-evidence" } }
+    },
+    {
+      "id": "tool-call-then-answer",
+      "description": "El modelo pide una sección con la herramienta y luego responde",
+      "studentText": "¿qué es una función?",
+      "modelResponses": [
+        "{\"tool_call\": {\"name\": \"get_lesson_section\", \"args\": {\"section\": 3}}}",
+        "{\"speech\": \"Una función agrupa instrucciones para reutilizarlas. ¿Ves la definición en la lección?\", \"marks\": [{\"text\": \"agrupa instrucciones para reutilizarlas\", \"style\": \"highlight\"}], \"advance\": false, \"action\": null, \"verdict\": null}"
+      ],
+      "expect": { "attempts": 2, "toolCalls": 1, "speechContains": "función", "metrics": { "toolCalls": 1 } }
+    },
+    {
+      "id": "tool-call-invalid-section",
+      "description": "Una sección inexistente produce error de herramienta y el bucle sigue",
+      "studentText": "explícame más",
+      "modelResponses": [
+        "{\"tool_call\": {\"name\": \"get_lesson_section\", \"args\": {\"section\": 42}}}",
+        "{\"speech\": \"Repasemos lo que dice la lección sobre variables.\", \"marks\": [], \"advance\": false, \"action\": null, \"verdict\": null}"
+      ],
+      "expect": { "attempts": 2, "toolCalls": 1, "metrics": { "toolErrors": 1 } }
+    },
+    {
+      "id": "truncated-json-repaired",
+      "description": "JSON truncado se repara por regex sin reintentar",
+      "studentText": "¿y cómo se declara?",
+      "modelResponses": [
+        "{\"speech\": \"Se declara con la palabra clave let, mira la lecci"
+      ],
+      "expect": { "attempts": 1, "repaired": true, "advance": false, "metrics": { "repairedOutputs": 1 } }
+    },
+    {
+      "id": "prose-then-feedback-retry",
+      "description": "Prosa sin JSON dispara reintento con feedback y se recupera",
+      "studentText": "creo que con const",
+      "modelResponses": [
+        "Claro, las constantes se declaran con const, muy bien.",
+        "{\"speech\": \"¡Correcto! Las constantes usan const.\", \"marks\": [], \"advance\": false, \"action\": null, \"verdict\": \"correct\"}"
+      ],
+      "expect": { "attempts": 2, "verdict": "correct", "metrics": { "retries": 1, "retrySuccesses": 1, "parseFailures": 1 } }
+    },
+    {
+      "id": "verdict-normalized",
+      "description": "Un verdict fuera del enum se normaliza a null",
+      "studentText": "no sé",
+      "modelResponses": [
+        "{\"speech\": \"Vamos por partes.\", \"marks\": [], \"advance\": false, \"action\": null, \"verdict\": \"genial\"}"
+      ],
+      "expect": { "verdict": null }
+    },
+    {
+      "id": "fallback-after-exhaustion",
+      "description": "Tras agotar intentos y rondas de herramienta, fallback controlado",
+      "studentText": "hola",
+      "modelResponses": [
+        "prosa sin json uno",
+        "prosa sin json dos",
+        "prosa sin json tres",
+        "prosa sin json cuatro"
+      ],
+      "expect": { "usedFallback": true, "metrics": { "fallbackUsed": 1, "parseFailures": 4 } }
+    },
+    {
+      "id": "live-correct-answer",
+      "live": true,
+      "description": "El estudiante responde bien una pregunta sobre variables",
+      "chat": [
+        { "role": "tutor", "text": "Mira la lección: ¿qué es una variable?" }
+      ],
+      "studentText": "una variable es un contenedor para guardar datos",
+      "judgeHint": "Felicitar brevemente al estudiante (respuesta correcta) y hacer una pregunta de seguimiento sobre la lección, en español conversacional."
+    },
+    {
+      "id": "live-question-functions",
+      "live": true,
+      "description": "El estudiante pregunta qué es una función",
+      "chat": [],
+      "studentText": "¿puedes explicarme qué es una función?",
+      "judgeHint": "Explicar brevemente que una función agrupa instrucciones para reutilizarlas, basándose en la lección, con tono alentador y conversacional."
+    }
+  ]
+}

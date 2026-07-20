@@ -1,4 +1,5 @@
 import type { Message } from './groqClient'
+import type { StructuredOutputSpec } from './llmClient'
 import type { MLCEngine } from '@mlc-ai/web-llm'
 
 /**
@@ -130,6 +131,7 @@ export async function streamWebLLM(
   onChunk: (text: string) => void,
   signal?: AbortSignal,
   onProgress?: (p: LoadProgress) => void,
+  responseFormat?: StructuredOutputSpec,
 ): Promise<void> {
   if (!isWebGPUAvailable()) {
     throw new Error('Tu navegador no soporta WebGPU. Usa Chrome/Edge recientes o cambia a Groq (nube) en ajustes.')
@@ -154,14 +156,28 @@ export async function streamWebLLM(
     }
   }
 
-  // 2) Generar (streaming).
-  try {
-    const chunks = await engine.chat.completions.create({
+  // 2) Generar (streaming). Con `responseFormat`, WebLLM aplica constrained
+  //    decoding (JSON schema → gramática): la salida cumple el schema por
+  //    construcción. Si el modelo/engine no lo admite, caer a generación libre.
+  const generate = (withFormat: boolean) =>
+    engine.chat.completions.create({
       messages,
       stream: true,
       temperature: 0.3,
       max_tokens: 1024,
+      ...(withFormat && responseFormat
+        ? { response_format: { type: 'json_object' as const, schema: JSON.stringify(responseFormat.schema) } }
+        : {}),
     })
+
+  try {
+    let chunks
+    try {
+      chunks = await generate(true)
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || !responseFormat) throw err
+      chunks = await generate(false)
+    }
 
     for await (const chunk of chunks) {
       if (signal?.aborted) {

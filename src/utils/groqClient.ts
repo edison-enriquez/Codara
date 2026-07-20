@@ -1,3 +1,5 @@
+import type { StructuredOutputSpec } from './llmClient'
+
 const GROQ_BASE = 'https://api.groq.com/openai/v1'
 
 export interface Message {
@@ -10,13 +12,13 @@ export interface GroqOptions {
   model: string
 }
 
-export async function streamGroq(
+async function requestCompletion(
   opts: GroqOptions,
   messages: Message[],
-  onChunk: (text: string) => void,
-  signal?: AbortSignal
-): Promise<void> {
-  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+  signal: AbortSignal | undefined,
+  responseFormat: StructuredOutputSpec | undefined,
+): Promise<Response> {
+  return fetch(`${GROQ_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -28,9 +30,27 @@ export async function streamGroq(
       stream: true,
       max_tokens: 1024,
       temperature: 0.3,
+      // Modo JSON nativo: garantiza JSON válido. El schema lo valida el harness
+      // (json_schema estricto de Groq solo está disponible en algunos modelos).
+      ...(responseFormat ? { response_format: { type: 'json_object' } } : {}),
     }),
     signal,
   })
+}
+
+export async function streamGroq(
+  opts: GroqOptions,
+  messages: Message[],
+  onChunk: (text: string) => void,
+  signal?: AbortSignal,
+  responseFormat?: StructuredOutputSpec
+): Promise<void> {
+  let res = await requestCompletion(opts, messages, signal, responseFormat)
+
+  // Si el modelo no admite response_format, reintentar una vez sin él.
+  if (!res.ok && responseFormat) {
+    res = await requestCompletion(opts, messages, signal, undefined)
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

@@ -5,7 +5,12 @@ import {
 } from 'lucide-react'
 import { useAgent } from '../context/AgentContext'
 import { useVoiceTutor, resolveVoice } from '../context/VoiceTutorContext'
-import { completeLLM, type Message, type LoadProgress } from '../utils/llmClient'
+import { type Message, type LoadProgress } from '../utils/llmClient'
+import {
+  runTutorTurn, decideAdvance, recordMetric, filterValidMarks, norm,
+  splitIntoSections, buildLessonContext, buildSystemPrompt, SPANISH_STOP_WORDS,
+  type LessonSection, type TutorMark as Mark,
+} from '../harness'
 import { extractReadableChunks } from '../utils/speechText'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { executeSlideAction, parseSlideAction } from '../utils/slideController'
@@ -28,122 +33,6 @@ const SILENCE_MS = 1500
 interface ChatTurn {
   role: 'tutor' | 'student'
   text: string
-}
-
-const SYSTEM = `Eres un tutor de programación que da clases por voz en español.
-Conduces una conversación oral con el estudiante basándote en el contenido de la lección.
-
-Reglas:
-- Cuando formules una pregunta, hazla abierta y de respuesta corta.
-- Cuando el estudiante responda, evalúa su comprensión y responde de forma natural.
-- Si la respuesta es correcta, felicita brevemente y haz una pregunta de seguimiento.
-- Si la respuesta es incorrecta o incompleta, corrige con tono amable y reformula.
-- No avances de lección hasta que el estudiante demuestre comprensión o pida explícitamente continuar.
-- Cuando el estudiante esté listo para continuar, termina tu respuesta con "advance": true; en cualquier otro caso usa "advance": false.
-- Sé CONVERSACIONAL y dinámico: usa frases como "mira, aquí en la lección dice...", "como puedes ver...", "fíjate en este punto...". Referencia visualmente el contenido.
-- Sé breve, claro y alentador. Usa lenguaje sencillo. Responde SIEMPRE en español.
-
-Control de presentaciones embebidas:
-- Si la lección incluye una presentación Slidev (iframe), puedes indicar al tutor que avance diapositivas.
-- Si la lección contiene una presentación Slidev, puedes cambiar de diapositiva devolviendo un campo "action" con: "nextSlide", "prevSlide" o "goToSlide:N" (donde N es el número de diapositiva, empezando en 1). Usa esto cuando digas frases como "veamos la siguiente diapositiva" o "vuelve a la anterior".
-- La acción se ejecuta después de que termines de hablar, sin interrumpir.
-
-Puedes RESALTAR partes específicas del contenido de la lección para guiar al estudiante:
-- Usa "highlight" (resaltador amarillo) para frases o definiciones importantes que quieras mostrar.
-- Usa "underline" (subrayado) para palabras clave, términos técnicos o conceptos que quieras enfatizar.
-- Marca como máximo 3 partes: una frase o definición con "highlight" y hasta dos palabras clave con "underline".
-- Elige únicamente fragmentos relacionados con lo que acabas de explicar, para que el texto acompañe a tu voz y no se convierta en ruido visual.
-- Las marcas deben ser citas EXACTAS (copiadas tal cual) del contenido de la lección.
-
-FORMATO DE RESPUESTA (obligatorio, SIEMPRE):
-Responde con un objeto JSON válido, sin markdown, sin texto fuera del JSON:
-{
-  "speech": "lo que dirás en voz alta (texto natural, conversacional)",
-  "marks": [
-    { "text": "cita exacta del contenido a resaltar con marcador", "style": "highlight" },
-    { "text": "palabra clave a subrayar", "style": "underline" }
-  ],
-  "advance": false,
-  "action": null
-}
-- "marks" puede ser un array vacío [] si no hay nada que marcar.
-- "style" solo puede ser "highlight" o "underline".
-- "action" puede ser null, o uno de: "nextSlide", "prevSlide", "goToSlide:N" (donde N es número).
-- NUNCA uses etiquetas como ==UL==...==/UL==, ==HL==...==/HL==, &lt;mark&gt;, &lt;u&gt;, ni ningún otro marcador en el campo "speech". El resaltado se hace ÚNICAMENTE mediante el array "marks". Si pones esas etiquetas en "speech", el estudiante las verá escritas literalmente en el chat y no se resaltará nada.
-- Para verificar que tus marcas son correctas: el texto en "marks" debe aparecer EXACTAMENTE IGUAL en el contenido de la lección (mismas palabras, mismo orden). Si no estás seguro, usa "marks": [].`
-
-interface Mark {
-  text: string
-  style: 'highlight' | 'underline'
-}
-
-function extractJsonObjects(raw: string): string[] {
-  const source = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '')
-  const objects: string[] = []
-  let start = -1
-  let depth = 0
-  let inString = false
-  let escaped = false
-
-  for (let i = 0; i < source.length; i++) {
-    const char = source[i]
-    if (inString) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === '"') inString = false
-      continue
-    }
-    if (char === '"') {
-      inString = true
-      continue
-    }
-    if (char === '{') {
-      if (depth === 0) start = i
-      depth++
-    } else if (char === '}' && depth > 0) {
-      depth--
-      if (depth === 0 && start >= 0) {
-        objects.push(source.slice(start, i + 1))
-        start = -1
-      }
-    }
-  }
-  return objects
-}
-
-function parseSpeech(raw: string): { speech: string; marks: Mark[]; advance: boolean; action: string | null } {
-  const candidates = extractJsonObjects(raw)
-  for (const candidate of candidates) {
-    try {
-      const o = JSON.parse(candidate)
-      if (typeof o.speech !== 'string') continue
-
-      let marks: Mark[] = []
-      if (Array.isArray(o.marks)) {
-        marks = o.marks
-          .filter((mk: any) => typeof mk?.text === 'string' && (mk?.style === 'highlight' || mk?.style === 'underline'))
-          .map((mk: any) => ({ text: mk.text.trim(), style: mk.style as 'highlight' | 'underline' }))
-      } else if (typeof o.reference === 'string') {
-        // retrocompatibilidad: reference única → highlight
-        marks = [{ text: o.reference.trim(), style: 'highlight' as const }]
-      }
-      const action = typeof o.action === 'string' ? o.action : null
-      return { speech: o.speech.trim(), marks, advance: o.advance === true, action }
-    } catch {
-      // Algunos modelos locales generan JSON casi válido; probar el siguiente objeto.
-    }
-  }
-
-  // Recuperación para JSON truncado o con una coma inválida: evita mostrar el objeto entero.
-  const speechMatch = raw.match(/"speech"\s*:\s*"((?:\\.|[^"\\])*)/s)
-  if (speechMatch) {
-    try {
-      const speech = JSON.parse(`"${speechMatch[1]}"`)
-      if (typeof speech === 'string' && speech.trim()) return { speech: speech.trim(), marks: [], advance: false, action: null }
-    } catch {}
-  }
-
-  return { speech: raw.trim(), marks: [], advance: false, action: null }
 }
 
 /** Extrae marcas que el agente puso directamente en el speech (tanto formato
@@ -206,35 +95,6 @@ function renderChatText(text: string): ReactNode {
   if (cursor < unified.length) parts.push(unified.slice(cursor))
   return parts.length > 0 ? <>{parts}</> : text
 }
-
-function norm(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-/** ¿La cita (mark) del LLM aparece realmente en el contenido de la lección? */
-function markIsValid(markText: string, lessonContent: string): boolean {
-  if (!markText || markText.length < 4) return true
-  const refN = norm(markText)
-  const chunks = extractReadableChunks(lessonContent)
-  for (const ch of chunks) {
-    const cN = norm(ch)
-    if (cN.includes(refN)) return true
-    const refWords = refN.split(' ').filter((w) => w.length > 3)
-    if (!refWords.length) continue
-    const chunkWords = new Set(cN.split(' ').filter((w) => w.length > 3))
-    let hits = 0
-    for (const w of refWords) if (chunkWords.has(w)) hits++
-    if (hits / refWords.length >= 0.6 && hits >= 2) return true
-  }
-  return false
-}
-
-const SPANISH_STOP_WORDS = new Set([
-  'ahora', 'antes', 'aquello', 'como', 'cuando', 'desde', 'donde', 'esta', 'este',
-  'estas', 'estos', 'hacia', 'hasta', 'luego', 'mientras', 'para', 'porque',
-  'puede', 'puedes', 'sobre', 'tambien', 'tiene', 'tienen', 'todo', 'todos',
-  'vamos', 'veras', 'muy', 'bien', 'solo', 'esta', 'ser', 'eso', 'aqui',
-])
 
 /** Recupera palabras del texto que el agente mencionó aunque no haya enviado marks. */
 function deriveMarksFromSpeech(speech: string, lessonContent: string, current: Mark[]): Mark[] {
@@ -349,7 +209,7 @@ export default function VoiceTutor() {
   const abortRef = useRef<AbortController | null>(null)
   const cancelSpeechRef = useRef<(() => void) | null>(null)
   const stoppingRef = useRef(false)
-  const lessonCtxRef = useRef<string>('')
+  const lessonSectionsRef = useRef<LessonSection[]>([])
   const configRef = useRef(config)
   configRef.current = config
   const chatRef = useRef<ChatTurn[]>([])
@@ -358,8 +218,10 @@ export default function VoiceTutor() {
 
   const sttSupported = sr.supported
 
+  // Chunking: la lección se divide en secciones una sola vez; la selección
+  // relevante se hace por turno en buildLLMMessages (ver harness/context.ts).
   useEffect(() => {
-    lessonCtxRef.current = extractReadableChunks(lessonContent).join('\n\n').slice(0, 6000)
+    lessonSectionsRef.current = splitIntoSections(lessonContent)
   }, [lessonContent])
 
   // ── Modulación sintética del orbe mientras el tutor habla (TTS) ─────────
@@ -442,10 +304,18 @@ setMarks([])
   }, [open, stopAll])
 
   // Construye los mensajes del LLM a partir del historial del chat.
+  // El contexto se re-selecciona por turno según relevancia conversacional.
   function buildLLMMessages(userText?: string): Message[] {
-    const msgs: Message[] = [{ role: 'system', content: SYSTEM }]
-    const ctx = `\n\n--- CONTENIDO DE LA LECCIÓN ---\n"""${lessonCtxRef.current}"""\n`
-    msgs[0].content += ctx
+    const sections = lessonSectionsRef.current
+    const { context, included } = buildLessonContext({
+      sections,
+      recentTurns: chatRef.current.slice(-4).map((t) => t.text),
+      budget: 6000,
+    })
+    const msgs: Message[] = [{
+      role: 'system',
+      content: buildSystemPrompt({ sections, included, context }),
+    }]
     for (const turn of chatRef.current) {
       msgs.push({
         role: turn.role === 'tutor' ? 'assistant' : 'user',
@@ -486,13 +356,34 @@ setMarks([])
     abortRef.current?.abort()
     abortRef.current = new AbortController()
     try {
-      const raw = (await completeLLM(
-        configRef.current, messages, abortRef.current.signal,
-        (p) => setModelLoad(p.progress >= 1 ? null : p)
-      )).trim()
+      // ── Harness: bucle agente (herramientas + reintento con feedback),
+      //    salida estructurada + validación del contrato + telemetría.
+      const { turn } = await runTutorTurn({
+        config: configRef.current,
+        messages,
+        lessonContent,
+        sections: lessonSectionsRef.current,
+        signal: abortRef.current.signal,
+        onProgress: (p) => setModelLoad(p.progress >= 1 ? null : p),
+      })
 
       if (stoppingRef.current) return
-      let { speech, marks, advance, action } = parseSpeech(raw)
+      let { speech, marks, action } = turn
+
+      // ── Gate de avance: el modelo pide (advance), el harness decide con
+      //    evidencia (petición explícita del estudiante o verdict "correct").
+      const gate = decideAdvance({
+        requested: turn.advance,
+        studentText: trimmed,
+        studentTurns: chatRef.current.filter((t) => t.role === 'student').length,
+        lastVerdict: turn.verdict,
+      })
+      if (turn.advance) {
+        recordMetric(gate.allowed ? 'advanceAllowed' : 'advanceBlocked')
+        if (!gate.allowed) console.info('[harness] Avance bloqueado por el gate:', gate.reason)
+      }
+      const advance = gate.allowed
+
       // Preservar texto original (con ==UL==/==HL== tags) para el display
       const rawDisplay = speech
       // Post-procesamiento: extraer tags del speech como marcas y limpiar para TTS
@@ -504,8 +395,8 @@ setMarks([])
         ? rawDisplay.replace(/^["“'"']+|["”'"']+$/g, '')
         : ttsText
 
-      // Filtrar solo las marcas válidas y setearlas para el renderer
-      const validMarks = marks.filter((mk) => mk.text.length >= 3 && markIsValid(mk.text, lessonContent))
+      // Filtrar solo las marcas válidas (verificadas contra la lección) y setearlas
+      const validMarks = filterValidMarks(marks, lessonContent)
       setMarks(deriveMarksFromSpeech(speech, lessonContent, validMarks))
 
       if (action) {
