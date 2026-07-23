@@ -77,7 +77,7 @@ export default function AgentSettings() {
             onClick={() => setProvider('opencodefree')}
             icon={<Bot size={14} />}
             title="OpenCode Free"
-            subtitle="mimo · deepseek · big-pickle · nemotron"
+            subtitle="Gratis · sin API key"
           />
         </div>
 
@@ -127,18 +127,18 @@ export default function AgentSettings() {
               </select>
             </div>
 
-            <div className="mb-5">
-              <label className="mb-1.5 block text-xs font-medium text-muted uppercase tracking-wider">
-                API Key
-              </label>
+            <details className="group">
+              <summary className="mb-1.5 flex cursor-pointer items-center gap-1 text-xs font-medium text-muted uppercase tracking-wider hover:text-text">
+                <Key size={11} />
+                API Key <span className="font-normal lowercase">(opcional)</span>
+              </summary>
               <div className="relative">
-                <Key size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
                 <input
                   type={showKey ? 'text' : 'password'}
                   value={opencodefreeApiKey}
                   onChange={(e) => setOpenCodeFreeApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="w-full rounded-lg border border-border bg-surface py-2 pl-8 pr-10 text-sm text-text placeholder-muted/50 focus:border-purple/50 focus:outline-none font-mono"
+                  className="w-full rounded-lg border border-border bg-surface py-2 pl-3 pr-10 text-sm text-text placeholder-muted/50 focus:border-purple/50 focus:outline-none font-mono"
                 />
                 <button
                   type="button"
@@ -149,9 +149,9 @@ export default function AgentSettings() {
                 </button>
               </div>
               <p className="mt-1.5 text-xs text-muted">
-                Modelos gratuitos vía API. Consigue tu key en opencode.ai
+                Funciona sin API key. Consigue una en opencode.ai para mayor disponibilidad.
               </p>
-            </div>
+            </details>
           </>
         )}
 

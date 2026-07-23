@@ -29,7 +29,7 @@ interface AgentContextValue {
 const STORAGE_KEY = 'codara_agent_config'
 
 export const DEFAULTS: AgentConfig = {
-  provider: 'webllm',
+  provider: 'opencodefree',
   apiKey: '',
   groqModel: 'llama-3.3-70b-versatile',
   webllmModel: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
@@ -81,7 +81,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
 
   const isConfigured =
     config.provider === 'groq' ? !!config.apiKey :
-    config.provider === 'opencodefree' ? !!config.opencodefreeApiKey :
+    config.provider === 'opencodefree' ? true :
     webgpuAvailable
 
   return (
