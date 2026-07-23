@@ -21,7 +21,7 @@ export default function AgentSettings() {
   const [showKey, setShowKey] = useState(false)
 
   const handleSave = () => {
-    setConfig({ provider, apiKey: apiKey.trim(), groqModel, webllmModel })
+    setConfig({ provider, apiKey: apiKey.trim(), groqModel, webllmModel, opencodefreeApiKey: '', opencodefreeModel: 'mimo-v2.5-free' })
     closeSettings()
   }
 
