@@ -71,7 +71,7 @@ async function judgeTurn(
 }
 
 describe.skipIf(!API_KEY)('eval en vivo: tutor real (Groq) + LLM-as-judge', () => {
-  const config: AgentConfig = { provider: 'groq', apiKey: API_KEY!, groqModel: MODEL, webllmModel: '' }
+  const config: AgentConfig = { provider: 'groq', apiKey: API_KEY!, groqModel: MODEL, webllmModel: '', opencodefreeApiKey: '', opencodefreeModel: 'kimi' }
   const sections = splitIntoSections(dataset.lesson)
 
   for (const liveCase of dataset.cases.filter((c) => c.live)) {
