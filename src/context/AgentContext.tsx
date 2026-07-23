@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
-export type AgentProvider = 'webllm' | 'groq'
+export type AgentProvider = 'webllm' | 'groq' | 'opencodefree'
 
 export interface AgentConfig {
   provider: AgentProvider
@@ -9,6 +9,9 @@ export interface AgentConfig {
   groqModel: string
   /** WebLLM (local, en el navegador) */
   webllmModel: string
+  /** OpenCode Free */
+  opencodefreeApiKey: string
+  opencodefreeModel: string
 }
 
 interface AgentContextValue {
@@ -30,6 +33,8 @@ export const DEFAULTS: AgentConfig = {
   apiKey: '',
   groqModel: 'llama-3.3-70b-versatile',
   webllmModel: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
+  opencodefreeApiKey: '',
+  opencodefreeModel: 'kimi',
 }
 
 /** WebGPU disponible (Chrome/Edge recientes, etc.). */
@@ -50,7 +55,7 @@ const GROQ_MODEL_MIGRATION: Record<string, string> = {
 function loadConfig(): AgentConfig {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
-    // Migración del formato antiguo { apiKey, model } → groqModel
+    // Migración del formato antiguo { apiKey, model } → groqModel / opencodefreeModel
     if (saved.model && !saved.groqModel) saved.groqModel = saved.model
     // Migración de modelos de Groq retirados (decommissioned)
     if (saved.groqModel && saved.groqModel in GROQ_MODEL_MIGRATION) {
@@ -75,7 +80,9 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const isConfigured =
-    config.provider === 'groq' ? !!config.apiKey : webgpuAvailable
+    config.provider === 'groq' ? !!config.apiKey :
+    config.provider === 'opencodefree' ? !!config.opencodefreeApiKey :
+    webgpuAvailable
 
   return (
     <AgentContext.Provider value={{

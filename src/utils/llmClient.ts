@@ -1,5 +1,6 @@
 import type { AgentConfig } from '../context/AgentContext'
 import { streamGroq, type Message } from './groqClient'
+import { streamOpenCodeFree } from './opencodefreeClient'
 import { streamWebLLM, type LoadProgress } from './webllmClient'
 
 export type { Message, LoadProgress }
@@ -29,6 +30,12 @@ export async function streamLLM(
 ): Promise<void> {
   if (config.provider === 'webllm') {
     return streamWebLLM(config.webllmModel, messages, onChunk, signal, onProgress, responseFormat)
+  }
+  if (config.provider === 'opencodefree') {
+    return streamOpenCodeFree(
+      { apiKey: config.opencodefreeApiKey, model: config.opencodefreeModel },
+      messages, onChunk, signal, responseFormat,
+    )
   }
   return streamGroq({ apiKey: config.apiKey, model: config.groqModel }, messages, onChunk, signal, responseFormat)
 }

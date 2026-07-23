@@ -12,16 +12,25 @@ const GROQ_MODELS = [
   { id: 'openai/gpt-oss-20b',      label: 'GPT OSS 20B · Ultrarrápido' },
 ]
 
+const OPENCODEFREE_MODELS = [
+  { id: 'kimi',     label: 'Kimi · Moonshot AI' },
+  { id: 'glm',      label: 'GLM · Zhipu AI' },
+  { id: 'qwen',     label: 'Qwen · Alibaba Cloud' },
+  { id: 'mimocode', label: 'MimoCode' },
+]
+
 export default function AgentSettings() {
   const { config, setConfig, closeSettings, webgpuAvailable } = useAgent()
   const [provider, setProvider] = useState<AgentProvider>(config.provider)
   const [apiKey, setApiKey] = useState(config.apiKey)
   const [groqModel, setGroqModel] = useState(config.groqModel)
   const [webllmModel, setWebllmModel] = useState(config.webllmModel)
+  const [opencodefreeApiKey, setOpenCodeFreeApiKey] = useState(config.opencodefreeApiKey)
+  const [opencodefreeModel, setOpenCodeFreeModel] = useState(config.opencodefreeModel)
   const [showKey, setShowKey] = useState(false)
 
   const handleSave = () => {
-    setConfig({ provider, apiKey: apiKey.trim(), groqModel, webllmModel })
+    setConfig({ provider, apiKey: apiKey.trim(), groqModel, webllmModel, opencodefreeApiKey: opencodefreeApiKey.trim(), opencodefreeModel })
     closeSettings()
   }
 
@@ -46,7 +55,7 @@ export default function AgentSettings() {
         </div>
 
         {/* Selector de proveedor */}
-        <div className="mb-4 grid grid-cols-2 gap-2">
+        <div className="mb-4 grid grid-cols-3 gap-2">
           <ProviderCard
             active={provider === 'webllm'}
             onClick={() => setProvider('webllm')}
@@ -60,6 +69,13 @@ export default function AgentSettings() {
             icon={<Cloud size={14} />}
             title="Nube (Groq)"
             subtitle="Rápido · requiere API key"
+          />
+          <ProviderCard
+            active={provider === 'opencodefree'}
+            onClick={() => setProvider('opencodefree')}
+            icon={<Bot size={14} />}
+            title="OpenCode Free"
+            subtitle="kimi · glm · qwen · mimocode"
           />
         </div>
 
@@ -89,6 +105,52 @@ export default function AgentSettings() {
               </p>
             )}
           </div>
+        )}
+
+        {/* ── Config OpenCode Free ──────────────────────────────────────── */}
+        {provider === 'opencodefree' && (
+          <>
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs font-medium text-muted uppercase tracking-wider">
+                Modelo
+              </label>
+              <select
+                value={opencodefreeModel}
+                onChange={(e) => setOpenCodeFreeModel(e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-purple/50 focus:outline-none"
+              >
+                {OPENCODEFREE_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-5">
+              <label className="mb-1.5 block text-xs font-medium text-muted uppercase tracking-wider">
+                API Key
+              </label>
+              <div className="relative">
+                <Key size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={opencodefreeApiKey}
+                  onChange={(e) => setOpenCodeFreeApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full rounded-lg border border-border bg-surface py-2 pl-8 pr-10 text-sm text-text placeholder-muted/50 focus:border-purple/50 focus:outline-none font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text"
+                >
+                  {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-muted">
+                Modelos gratuitos vía API. Consigue tu key en opencode.ai
+              </p>
+            </div>
+          </>
         )}
 
         {/* ── Config Groq ───────────────────────────────────────────────── */}
