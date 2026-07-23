@@ -12,27 +12,16 @@ const GROQ_MODELS = [
   { id: 'openai/gpt-oss-20b',      label: 'GPT OSS 20B · Ultrarrápido' },
 ]
 
-const OPENCODEFREE_MODELS = [
-  { id: 'mimo-v2.5-free',        label: 'MiMo V2.5 Free · 1M contexto' },
-  { id: 'big-pickle',            label: 'Big Pickle · propósito general' },
-  { id: 'deepseek-v4-flash-free', label: 'DeepSeek V4 Flash Free · rápido' },
-  { id: 'nemotron-3-ultra-free', label: 'Nemotron 3 Ultra Free · NVIDIA' },
-  { id: 'north-mini-code-free',  label: 'North Mini Code Free · código' },
-  { id: 'laguna-s-2.1-free',     label: 'Laguna S 2.1 Free' },
-]
-
 export default function AgentSettings() {
   const { config, setConfig, closeSettings, webgpuAvailable } = useAgent()
   const [provider, setProvider] = useState<AgentProvider>(config.provider)
   const [apiKey, setApiKey] = useState(config.apiKey)
   const [groqModel, setGroqModel] = useState(config.groqModel)
   const [webllmModel, setWebllmModel] = useState(config.webllmModel)
-  const [opencodefreeApiKey, setOpenCodeFreeApiKey] = useState(config.opencodefreeApiKey)
-  const [opencodefreeModel, setOpenCodeFreeModel] = useState(config.opencodefreeModel)
   const [showKey, setShowKey] = useState(false)
 
   const handleSave = () => {
-    setConfig({ provider, apiKey: apiKey.trim(), groqModel, webllmModel, opencodefreeApiKey: opencodefreeApiKey.trim(), opencodefreeModel })
+    setConfig({ provider, apiKey: apiKey.trim(), groqModel, webllmModel })
     closeSettings()
   }
 
@@ -57,7 +46,7 @@ export default function AgentSettings() {
         </div>
 
         {/* Selector de proveedor */}
-        <div className="mb-4 grid grid-cols-3 gap-2">
+        <div className="mb-4 grid grid-cols-2 gap-2">
           <ProviderCard
             active={provider === 'webllm'}
             onClick={() => setProvider('webllm')}
@@ -71,13 +60,6 @@ export default function AgentSettings() {
             icon={<Cloud size={14} />}
             title="Nube (Groq)"
             subtitle="Rápido · requiere API key"
-          />
-          <ProviderCard
-            active={provider === 'opencodefree'}
-            onClick={() => setProvider('opencodefree')}
-            icon={<Bot size={14} />}
-            title="OpenCode Free"
-            subtitle="Gratis · sin API key"
           />
         </div>
 
@@ -107,52 +89,6 @@ export default function AgentSettings() {
               </p>
             )}
           </div>
-        )}
-
-        {/* ── Config OpenCode Free ──────────────────────────────────────── */}
-        {provider === 'opencodefree' && (
-          <>
-            <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-medium text-muted uppercase tracking-wider">
-                Modelo
-              </label>
-              <select
-                value={opencodefreeModel}
-                onChange={(e) => setOpenCodeFreeModel(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-purple/50 focus:outline-none"
-              >
-                {OPENCODEFREE_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <details className="group">
-              <summary className="mb-1.5 flex cursor-pointer items-center gap-1 text-xs font-medium text-muted uppercase tracking-wider hover:text-text">
-                <Key size={11} />
-                API Key <span className="font-normal lowercase">(opcional)</span>
-              </summary>
-              <div className="relative">
-                <input
-                  type={showKey ? 'text' : 'password'}
-                  value={opencodefreeApiKey}
-                  onChange={(e) => setOpenCodeFreeApiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="w-full rounded-lg border border-border bg-surface py-2 pl-3 pr-10 text-sm text-text placeholder-muted/50 focus:border-purple/50 focus:outline-none font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text"
-                >
-                  {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
-                </button>
-              </div>
-              <p className="mt-1.5 text-xs text-muted">
-                Funciona sin API key. Consigue una en opencode.ai para mayor disponibilidad.
-              </p>
-            </details>
-          </>
         )}
 
         {/* ── Config Groq ───────────────────────────────────────────────── */}

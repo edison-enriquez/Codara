@@ -29,7 +29,7 @@ interface AgentContextValue {
 const STORAGE_KEY = 'codara_agent_config'
 
 export const DEFAULTS: AgentConfig = {
-  provider: 'opencodefree',
+  provider: 'webllm',
   apiKey: '',
   groqModel: 'llama-3.3-70b-versatile',
   webllmModel: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
@@ -61,12 +61,7 @@ function loadConfig(): AgentConfig {
     if (saved.groqModel && saved.groqModel in GROQ_MODEL_MIGRATION) {
       saved.groqModel = GROQ_MODEL_MIGRATION[saved.groqModel]
     }
-    // Si el proveedor guardado no es usable, migrar a opencodefree
-    if (saved.provider === 'webllm' && !detectWebGPU()) {
-      saved.provider = 'opencodefree'
-    } else if (saved.provider === 'groq' && !saved.apiKey) {
-      saved.provider = 'opencodefree'
-    }
+    // TODO: migrar a opencodefree cuando esté disponible vía OmniRouter
     return { ...DEFAULTS, ...saved }
   } catch {
     return DEFAULTS
@@ -87,7 +82,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
 
   const isConfigured =
     config.provider === 'groq' ? !!config.apiKey :
-    config.provider === 'opencodefree' ? true :
+    config.provider === 'opencodefree' ? !!config.opencodefreeApiKey :
     webgpuAvailable
 
   return (
