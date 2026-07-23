@@ -61,6 +61,12 @@ function loadConfig(): AgentConfig {
     if (saved.groqModel && saved.groqModel in GROQ_MODEL_MIGRATION) {
       saved.groqModel = GROQ_MODEL_MIGRATION[saved.groqModel]
     }
+    // Si el proveedor guardado no es usable, migrar a opencodefree
+    if (saved.provider === 'webllm' && !detectWebGPU()) {
+      saved.provider = 'opencodefree'
+    } else if (saved.provider === 'groq' && !saved.apiKey) {
+      saved.provider = 'opencodefree'
+    }
     return { ...DEFAULTS, ...saved }
   } catch {
     return DEFAULTS

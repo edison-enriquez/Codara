@@ -185,7 +185,7 @@ function speak(text: string, voiceName: string, onEnd?: () => void, onError?: ()
 
 /** Botón flotante + panel lateral deslizable. Se renderiza globalmente. */
 export default function VoiceTutor() {
-  const { config, isConfigured, openSettings } = useAgent()
+  const { config, isConfigured } = useAgent()
   const { lessonContent, open, setOpen, voiceName, supported: ttsSupported, setMarks } = useVoiceTutor()
   const { iframeRef } = useSlideController()
   const location = useLocation()
@@ -476,7 +476,7 @@ setMarks([])
 
   const handleMainClick = () => {
     if (!isConfigured) {
-      openSettings()
+      setError('Configura un proveedor IA en los ajustes antes de continuar.')
       return
     }
     // El botón de voz solo controla el micrófono, no inicia la tutoría
@@ -639,7 +639,10 @@ setMarks([])
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
-                      if (!isConfigured) { openSettings(); return }
+                      if (!isConfigured) {
+                        setError('Configura un proveedor IA en los ajustes antes de continuar.')
+                        return
+                      }
                       if (!busy && textDraft.trim()) sendResponse(textDraft)
                     }
                   }}
@@ -650,7 +653,10 @@ setMarks([])
                 />
                 <button
                   onClick={() => {
-                    if (!isConfigured) { openSettings(); return }
+                    if (!isConfigured) {
+                      setError('Configura un proveedor IA en los ajustes antes de continuar.')
+                      return
+                    }
                     if (!busy && textDraft.trim()) sendResponse(textDraft)
                   }}
                   disabled={busy || !textDraft.trim()}
