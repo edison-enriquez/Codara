@@ -20,7 +20,7 @@ Una variable es un contenedor para guardar datos. Se declara con let.
 Las constantes se declaran con const y no se pueden reasignar.
 `
 
-const CONFIG: AgentConfig = { provider: 'groq', apiKey: 'test', groqModel: 'test-model', webllmModel: '', opencodefreeApiKey: '', opencodefreeModel: 'kimi' }
+const CONFIG: AgentConfig = { provider: 'groq', apiKey: 'test', groqModel: 'test-model', webllmModel: '', opencodefreeApiKey: '', opencodefreeModel: 'mimo-v2.5-free' }
 const MESSAGES: Message[] = [{ role: 'user', content: 'hola' }]
 
 const VALID_JSON = JSON.stringify({

@@ -34,7 +34,7 @@ export const DEFAULTS: AgentConfig = {
   groqModel: 'llama-3.3-70b-versatile',
   webllmModel: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
   opencodefreeApiKey: '',
-  opencodefreeModel: 'kimi',
+  opencodefreeModel: 'mimo-v2.5-free',
 }
 
 /** WebGPU disponible (Chrome/Edge recientes, etc.). */

@@ -48,7 +48,7 @@ const dataset = JSON.parse(
   readFileSync(new URL('../../../evals/golden/tutor-turns.json', import.meta.url), 'utf-8')
 ) as GoldenDataset
 
-const CONFIG: AgentConfig = { provider: 'groq', apiKey: 'golden', groqModel: 'golden-model', webllmModel: '', opencodefreeApiKey: '', opencodefreeModel: 'kimi' }
+const CONFIG: AgentConfig = { provider: 'groq', apiKey: 'golden', groqModel: 'golden-model', webllmModel: '', opencodefreeApiKey: '', opencodefreeModel: 'mimo-v2.5-free' }
 
 function scriptedComplete(responses: string[]): CompleteFn {
   let i = 0

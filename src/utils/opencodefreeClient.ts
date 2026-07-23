@@ -1,6 +1,6 @@
 import type { StructuredOutputSpec } from './llmClient'
 
-const OPENCODEFREE_BASE = 'https://api.opencode.ai/v1'
+const OPENCODEFREE_BASE = 'https://opencode.ai/zen/v1'
 
 export interface Message {
   role: 'system' | 'user' | 'assistant'

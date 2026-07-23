@@ -13,10 +13,12 @@ const GROQ_MODELS = [
 ]
 
 const OPENCODEFREE_MODELS = [
-  { id: 'kimi',     label: 'Kimi · Moonshot AI' },
-  { id: 'glm',      label: 'GLM · Zhipu AI' },
-  { id: 'qwen',     label: 'Qwen · Alibaba Cloud' },
-  { id: 'mimocode', label: 'MimoCode' },
+  { id: 'mimo-v2.5-free',        label: 'MiMo V2.5 Free · 1M contexto' },
+  { id: 'big-pickle',            label: 'Big Pickle · propósito general' },
+  { id: 'deepseek-v4-flash-free', label: 'DeepSeek V4 Flash Free · rápido' },
+  { id: 'nemotron-3-ultra-free', label: 'Nemotron 3 Ultra Free · NVIDIA' },
+  { id: 'north-mini-code-free',  label: 'North Mini Code Free · código' },
+  { id: 'laguna-s-2.1-free',     label: 'Laguna S 2.1 Free' },
 ]
 
 export default function AgentSettings() {
@@ -75,7 +77,7 @@ export default function AgentSettings() {
             onClick={() => setProvider('opencodefree')}
             icon={<Bot size={14} />}
             title="OpenCode Free"
-            subtitle="kimi · glm · qwen · mimocode"
+            subtitle="mimo · deepseek · big-pickle · nemotron"
           />
         </div>
 
