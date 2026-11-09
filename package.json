@@ -6,7 +6,7 @@
   "scripts": {
     "build:content": "node scripts/build-content.mjs",
     "dev:slides": "slidev slides/curso-slidev-prueba/slides.md --open",
-    "build:slides": "slidev build slides/curso-slidev-prueba/slides.md --out ../../public/slides/curso-slidev-prueba --base /Codara/slides/curso-slidev-prueba/",
+    "build:slides": "slidev build slides/curso-slidev-prueba/slides.md --out ../../public/slides/curso-slidev-prueba --base /slides/curso-slidev-prueba/",
     "predev": "npm run build:content && npm run build:slides",
     "dev": "vite",
     "dev:server": "node --env-file=server/.env.server server/sandbox.mjs",
