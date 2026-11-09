@@ -34,7 +34,7 @@ La app estará disponible en `http://localhost:5173`.
 Cada push a `main` ejecuta `.github/workflows/deploy.yml`, genera el contenido y
 las diapositivas, compila la aplicación y la publica en:
 
-`https://edison-enriquez.github.io/Codara/`
+`https://codara.eehub.ing`
 
 En la configuración del repositorio, **Settings → Pages** debe usar **GitHub
 Actions** como origen de despliegue. También se puede iniciar el workflow

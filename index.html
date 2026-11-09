@@ -26,7 +26,7 @@
           var p = url.searchParams.get('p')
           if (p) {
             var q = url.searchParams.get('q')
-            var newPath = '/Codara' + p + (q ? '?' + q.replace(/~and~/g, '&') : '') + location.hash
+            var newPath = p + (q ? '?' + q.replace(/~and~/g, '&') : '') + location.hash
             history.replaceState(null, null, newPath)
           }
         } catch (e) {}

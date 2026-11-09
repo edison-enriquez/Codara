@@ -63,7 +63,7 @@ export default function App() {
           <AgentProvider>
             <VoiceTutorProvider>
               <SlideControllerProvider>
-                <BrowserRouter basename="/Codara">
+                <BrowserRouter>
                   <AppShell theme={theme} toggle={toggle} />
                 </BrowserRouter>
               </SlideControllerProvider>
